@@ -1,0 +1,89 @@
+# =============================================================================
+# REGRAS.TOML — Janelas da Barra (Porto de Lisboa)
+# =============================================================================
+# CADA NÚMERO NESTE FICHEIRO TEM UMA "fonte". Há três tipos:
+#   "APL/Capitania"  -> vem de regulamento/edital público (referenciar qual)
+#   "PIANC/prática"  -> regra prática internacional, ponto de partida razoável
+#   "PLACEHOLDER"    -> valor inventado como defeito conservador.
+#                       TEM DE SER VALIDADO POR UM PILOTO ANTES DE CONFIAR.
+#
+# Para afinar a app: edita os números, mantém a fonte atualizada. Mais nada.
+# =============================================================================
+
+[local]
+# Ponto de avaliação meteo-mar: aproximação à Barra Sul (a validar)
+latitude = 38.62
+longitude = -9.38
+nome = "Aproximação Barra Sul"
+fonte = "PLACEHOLDER — coordenada aproximada, validar com piloto"
+
+[canal]
+# Profundidade de referência do canal da Barra Sul, em metros abaixo do ZH.
+# NOTA: valor ilustrativo. Confirmar com carta náutica IH / APL.
+profundidade_zh = 15.0
+fonte = "PLACEHOLDER — confirmar com carta do IH e dragagens APL"
+
+[ukc]
+# Folga sob a quilha mínima como fração do calado (UKC estático simplificado).
+# 10% é ponto de partida corrente em águas abrigadas; a barra pode exigir mais
+# por squat e resposta vertical à ondulação.
+folga_minima_pct = 0.10
+folga_ambar_pct = 0.15
+fonte = "PIANC/prática — validar critério local com piloto"
+
+# --- Regras horárias (aplicadas à previsão hora a hora) ----------------------
+# Estados: verde (sem restrição), ambar (atenção), vermelho (janela má).
+# Cada regra: parametro, limiares ambar/vermelho e, opcionalmente, um setor
+# direcional [dir_min, dir_max] em graus (só avalia se a direção cair no setor).
+
+[[regra]]
+id = "swell_oeste"
+descricao = "Ondulação (swell) de W/SW na aproximação"
+parametro = "swell_altura"
+dir_min = 190
+dir_max = 300
+ambar = 2.5
+vermelho = 3.5
+fonte = "PLACEHOLDER — validar com piloto"
+
+[[regra]]
+id = "periodo_longo"
+descricao = "Período de swell longo (mar de fundo pesado)"
+parametro = "swell_periodo"
+ambar = 12.0
+vermelho = 16.0
+fonte = "PLACEHOLDER — validar com piloto"
+
+[[regra]]
+id = "mar_total"
+descricao = "Altura significativa total (mar composto)"
+parametro = "onda_altura"
+ambar = 3.0
+vermelho = 4.5
+fonte = "PLACEHOLDER — validar com piloto"
+
+[[regra]]
+id = "vento"
+descricao = "Vento médio a 10 m"
+parametro = "vento_kn"
+ambar = 25.0
+vermelho = 35.0
+fonte = "PLACEHOLDER — validar com piloto"
+
+[[regra]]
+id = "rajada"
+descricao = "Rajada"
+parametro = "rajada_kn"
+ambar = 35.0
+vermelho = 45.0
+fonte = "PLACEHOLDER — validar com piloto"
+
+[notas_regulamentares]
+# Informação qualitativa (não numérica) mostrada no painel, com fonte pública.
+itens = [
+  "O Capitão do Porto pode fechar ou condicionar a barra com base nas condições de tempo e mar, ouvida a Autoridade Portuária (Edital CPL).",
+  "Pilotagem obrigatória desde fora das barras para os navios abrangidos; embarque do piloto conforme Regulamento de Autoridade Portuária da APL.",
+  "Navios-tanque com cargas perigosas das classes 2, 6 e 8 têm restrições específicas (Regulamento APL).",
+  "Avisos em vigor: VTS-Lisboa, Capitania e ANAVNET (anavnet.hidrografico.pt).",
+]
+fonte = "Regulamento de Autoridade Portuária da APL + Editais da Capitania do Porto de Lisboa"
