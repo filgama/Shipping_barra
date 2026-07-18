@@ -128,11 +128,18 @@ def avaliar_hora(hora: dict, regras: dict) -> tuple[int, list[str]]:
         val = hora.get(r["parametro"])
         if val is None:
             continue
-        # setor direcional opcional
+        # setor direcional opcional (suporta sectores que cruzam o Norte,
+        # ex.: dir_min=300, dir_max=60)
         if "dir_min" in r:
             dchave = dir_por_parametro.get(r["parametro"])
             d = hora.get(dchave) if dchave else None
-            if d is None or not (r["dir_min"] <= d <= r["dir_max"]):
+            if d is None:
+                continue
+            if r["dir_min"] <= r["dir_max"]:
+                dentro = r["dir_min"] <= d <= r["dir_max"]
+            else:
+                dentro = d >= r["dir_min"] or d <= r["dir_max"]
+            if not dentro:
                 continue
         if val >= r["vermelho"]:
             estado = max(estado, 2)
