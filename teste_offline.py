@@ -137,10 +137,18 @@ def teste_html_em_porto():
     assert "Em porto agora (1)" in out and "DELTA" in out
 
 
+def teste_dark_mode():
+    prev = previsao_fixa()
+    avals = [jb.avaliar_hora(h, REGRAS) for h in prev]
+    out = jb.gerar_html(prev, avals, [], {}, REGRAS)
+    assert "prefers-color-scheme: dark" in out
+    assert out.count('name="theme-color"') == 2
+
+
 TESTES = [teste_avaliar_hora_basico, teste_setor_circular, teste_ukc,
           teste_extrair_navios, teste_cardeal_seta,
           teste_html_timeline_interativa, teste_svg_mare,
-          teste_filtrar_em_porto, teste_html_em_porto]
+          teste_filtrar_em_porto, teste_html_em_porto, teste_dark_mode]
 
 
 def main():

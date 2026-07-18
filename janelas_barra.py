@@ -498,6 +498,8 @@ def gerar_html(previsao, avaliacoes, navios, apl, regras) -> str:
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="refresh" content="900">
+<meta name="theme-color" content="#DCEBF1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0D1720" media="(prefers-color-scheme: dark)">
 <title>Janelas da Barra · Lisboa</title>
 <style>
  :root {{ --tinta:#1B2A38; --agua:#DCEBF1; --papel:#F7F5EF; --mag:#B0257C; }}
@@ -547,6 +549,16 @@ def gerar_html(previsao, avaliacoes, navios, apl, regras) -> str:
  ul {{ margin:6px 0 0; padding-left:18px; font-size:12px; }}
  .vazio {{ color:#5C6E7C; font-style:italic; font-size:13px; }}
  footer {{ font-size:11px; color:#5C6E7C; padding:0 16px 20px; }}
+ @media (prefers-color-scheme: dark) {{
+  :root {{ --tinta:#E6EDF3; --agua:#0D1720; --papel:#15222D; --mag:#E464AE; }}
+  section {{ border-color:#33475A; }}
+  th {{ background:#0D1720; }}
+  th, td {{ border-color:#33475A; }}
+  .navio {{ border-bottom-color:#243442; }}
+  .aviso {{ background:#15222D; color:#E6EDF3;
+           border-bottom:1px solid #33475A; }}
+  .fonte-ok {{ color:#4CC38A; }}
+ }}
 </style></head>
 <body>
 <header>
