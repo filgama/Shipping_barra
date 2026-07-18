@@ -172,6 +172,23 @@ def avaliar_ukc(calado: float, nivel_mar, regras: dict):
     return 0, "UKC ok: " + txt
 
 
+SETORES = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+           "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
+
+
+def cardeal_seta(graus) -> tuple[str, str]:
+    """Direção meteorológica (proveniência) → (ponto cardeal, seta do rumo).
+    Convenção náutica: 'swell de NW' — o nome diz de onde vem; a seta
+    aponta para onde o fluxo segue (proveniência + 180°)."""
+    if graus is None:
+        return "", ""
+    g = float(graus) % 360
+    nome = SETORES[int((g + 11.25) // 22.5) % 16]
+    rumo = (g + 180) % 360
+    seta = "↑↗→↘↓↙←↖"[int(((rumo + 22.5) % 360) // 45)]
+    return nome, seta
+
+
 # ---------------------------------------------------------------------------
 # APL (API JSON) + extração de navios
 # ---------------------------------------------------------------------------

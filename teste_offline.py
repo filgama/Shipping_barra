@@ -76,8 +76,15 @@ def teste_extrair_navios():
     assert navios[1]["momento"] is None and navios[1]["calado"] is None
 
 
+def teste_cardeal_seta():
+    assert jb.cardeal_seta(315) == ("NW", "↘")   # swell de NW segue para SE
+    assert jb.cardeal_seta(0) == ("N", "↓")
+    assert jb.cardeal_seta(90) == ("E", "←")
+    assert jb.cardeal_seta(None) == ("", "")
+
+
 TESTES = [teste_avaliar_hora_basico, teste_setor_circular, teste_ukc,
-          teste_extrair_navios]
+          teste_extrair_navios, teste_cardeal_seta]
 
 
 def main():
