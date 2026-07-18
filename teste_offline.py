@@ -97,9 +97,20 @@ def teste_html_timeline_interativa():
     assert "scrollIntoView" in out                    # JS presente
 
 
+def teste_svg_mare():
+    prev = previsao_fixa()
+    svg = jb.gerar_svg_mare(prev)
+    assert svg.startswith("<svg") and "polyline" in svg
+    assert "02h +1.0" in svg and "06h -1.0" in svg     # PM e BM anotadas
+    sem_dados = [dict(h, nivel_mar=None) for h in prev]
+    assert jb.gerar_svg_mare(sem_dados) == ""
+    avals = [jb.avaliar_hora(h, REGRAS) for h in prev]
+    assert "<svg" in jb.gerar_html(prev, avals, [], {}, REGRAS)
+
+
 TESTES = [teste_avaliar_hora_basico, teste_setor_circular, teste_ukc,
           teste_extrair_navios, teste_cardeal_seta,
-          teste_html_timeline_interativa]
+          teste_html_timeline_interativa, teste_svg_mare]
 
 
 def main():

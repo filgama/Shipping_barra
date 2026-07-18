@@ -269,6 +269,50 @@ def extrair_navios(apl: dict) -> list[dict]:
 # ---------------------------------------------------------------------------
 # Painel HTML (mobile-first)
 # ---------------------------------------------------------------------------
+def gerar_svg_mare(previsao, passo=24, alto=56) -> str:
+    """Curva do nível do mar (modelo, rel. MSL) alinhada à timeline:
+    um `passo` por hora. Preia-mares/baixa-mares anotadas com hora e
+    altura. Devolve "" se não houver dados suficientes."""
+    valores = [h.get("nivel_mar") for h in previsao]
+    pares = [(i, v) for i, v in enumerate(valores) if v is not None]
+    if len(pares) < 3:
+        return ""
+    vmin = min(v for _, v in pares)
+    vmax = max(v for _, v in pares)
+    amp = (vmax - vmin) or 1.0
+    m_topo, m_base = 14, 8
+    util = alto - m_topo - m_base
+
+    def xy(i, v):
+        return i * passo + passo / 2, m_topo + (vmax - v) / amp * util
+
+    pontos = " ".join(f"{x:.0f},{y:.1f}"
+                      for x, y in (xy(i, v) for i, v in pares))
+    marcas = []
+    for k in range(1, len(pares) - 1):
+        i, v = pares[k]
+        antes, depois = pares[k - 1][1], pares[k + 1][1]
+        pm = v >= antes and v > depois
+        bm = v <= antes and v < depois
+        if not (pm or bm):
+            continue
+        x, y = xy(i, v)
+        dy = -4 if pm else 12
+        marcas.append(f"<text x='{x:.0f}' y='{y + dy:.1f}' "
+                      f"text-anchor='middle' class='mare-rot'>"
+                      f"{previsao[i]['tempo'][11:13]}h {v:+.1f}</text>")
+    largura = len(previsao) * passo
+    linha0 = ""
+    if vmin <= 0 <= vmax:
+        y0 = m_topo + vmax / amp * util
+        linha0 = (f"<line x1='0' y1='{y0:.1f}' x2='{largura}' "
+                  f"y2='{y0:.1f}' class='mare-msl'/>")
+    return (f"<svg class='mare' width='{largura}' height='{alto}' "
+            f"viewBox='0 0 {largura} {alto}'>{linha0}"
+            f"<polyline points='{pontos}' class='mare-linha'/>"
+            f"{''.join(marcas)}</svg>")
+
+
 COR = {0: "#1E7A5A", 1: "#E2B93B", 2: "#C0392B"}
 
 # JS vanilla do painel (string normal — inserida no f-string via {JS_PAINEL}):
@@ -397,6 +441,10 @@ def gerar_html(previsao, avaliacoes, navios, apl, regras) -> str:
     notas = "".join(f"<li>{e(x)}</li>" for x in
                     regras.get("notas_regulamentares", {}).get("itens", []))
 
+    # --- curva de maré alinhada à timeline --------------------------------
+    svg_mare = gerar_svg_mare(previsao)
+    legenda_mare = (" · curva: nível modelado (rel. MSL)" if svg_mare else "")
+
     return f"""<!DOCTYPE html>
 <html lang="pt"><head>
 <meta charset="utf-8">
@@ -423,6 +471,10 @@ def gerar_html(previsao, avaliacoes, navios, apl, regras) -> str:
  .cel-a .hh, .cel-a .dia {{ color:#1B2A38; }}
  #detalhe {{ margin-top:8px; padding:8px 10px; border:1.5px dashed var(--tinta);
             border-radius:8px; font-size:13px; line-height:1.45; }}
+ .mare {{ display:block; }}
+ .mare-linha {{ fill:none; stroke:#3B7EA1; stroke-width:2; }}
+ .mare-rot {{ font-size:9px; fill:currentColor; }}
+ .mare-msl {{ stroke:#5C6E7C; stroke-dasharray:3 3; }}
  .cel {{ min-width:22px; height:46px; border-radius:4px; position:relative;
         color:#fff; }}
  .cel .hh {{ position:absolute; bottom:2px; left:0; right:0;
@@ -462,9 +514,10 @@ PLACEHOLDERS por validar.</div>
  <h2>Próximas {len(celulas)} horas</h2>
  <div class="scroll">
   <div class="timeline">{''.join(celulas)}</div>
+  {svg_mare}
  </div>
  <div id="detalhe" hidden></div>
- <div class="legenda">Toca/paira numa hora para ver os motivos.
+ <div class="legenda">Toca/paira numa hora para ver os motivos.{legenda_mare}
   <span class="dot" style="background:{COR[0]}"></span>verde
   <span class="dot" style="background:{COR[1]}"></span>âmbar
   <span class="dot" style="background:{COR[2]}"></span>vermelho</div>
