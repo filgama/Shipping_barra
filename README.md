@@ -29,6 +29,9 @@ Abre o `index.html` gerado. Opções: `--sem-apl` (só meteo-mar, teste rápido)
    atualiza-se sozinho a cada 30 minutos. No Android/iPhone: abrir o link →
    menu do browser → **Adicionar ao ecrã principal**.
 
+No painel, toca numa hora da timeline para veres os motivos e valores
+(swell, nível, vento); a hora atual aparece contornada a magenta.
+
 ## Afinar as regras
 
 Tudo em `regras.toml` — cada limiar tem um campo `fonte`. Os valores

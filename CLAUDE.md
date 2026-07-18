@@ -32,6 +32,7 @@ GitHub Pages. O utilizador final abre um link no telemóvel.
 ```
 janelas-barra/
 ├── janelas_barra.py          # script único: recolha + regras + HTML
+├── teste_offline.py          # teste sem rede: fixtures + assert (correr antes de commit)
 ├── regras.toml               # ÚNICO sítio onde vivem limiares numéricos
 ├── index.html                # gerado; não editar à mão
 ├── requirements.txt
@@ -89,7 +90,7 @@ barra em texto ou código — se falta um dado, marcar `PLACEHOLDER`.
 
 - Português europeu em código, comentários, UI e commits. Terminologia
   náutica correta (calado, UKC, enfiamento, preia-mar/baixa-mar).
-- Um só ficheiro Python enquanto for razoável (< ~700 linhas). Sem
+- Um só ficheiro Python enquanto for razoável (< ~1000 linhas). Sem
   frameworks nem dependências externas; stdlib apenas (3.11+: `tomllib`).
 - HTML gerado por f-string no próprio script; sem templates externos.
   Design tokens: tinta `#1B2A38`, água `#DCEBF1`, papel `#F7F5EF`,
@@ -105,12 +106,14 @@ python janelas_barra.py                # recolha completa → index.html
 python janelas_barra.py --sem-apl      # teste rápido só com meteo-mar
 python janelas_barra.py --horas 96     # horizonte alargado
 python -m py_compile janelas_barra.py  # sanity check
+python teste_offline.py                # teste offline (obrigatório antes de commit)
 ```
 
-Teste offline (sem rede): construir uma lista `previsao` fictícia e chamar
-`avaliar_hora`, `extrair_navios`, `avaliar_ukc` e `gerar_html` diretamente —
-ver exemplo no histórico do projeto. Qualquer alteração ao motor de regras ou
-ao parser deve passar por este teste antes de commit.
+Teste offline (sem rede): `python teste_offline.py` — fixtures sintéticas
+para `avaliar_hora` (incl. sectores que cruzam o Norte), `avaliar_ukc`,
+`extrair_navios`, `filtrar_em_porto`, `gerar_svg_mare` e `gerar_html`.
+Obrigatório antes de qualquer commit que toque no motor de regras, no
+parser ou no HTML; o CI corre-o antes de publicar.
 
 ## Estado atual e dívidas conhecidas
 

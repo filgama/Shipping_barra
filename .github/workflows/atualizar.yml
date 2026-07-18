@@ -25,6 +25,9 @@ jobs:
           python-version: "3.12"
 
       # Sem dependências externas: APL via API JSON + Open-Meteo, tudo stdlib.
+      - name: Teste offline
+        run: python teste_offline.py
+
       - name: Gerar painel
         run: python janelas_barra.py --horas 72
 
