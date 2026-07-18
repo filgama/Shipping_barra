@@ -108,9 +108,39 @@ def teste_svg_mare():
     assert "<svg" in jb.gerar_html(prev, avals, [], {}, REGRAS)
 
 
+def teste_filtrar_em_porto():
+    agora = datetime(2026, 7, 18, 12, 0)
+    registos = [
+        {"navio": "DELTA", "ata": "2026-07-17 08:00:00.0", "atd": "",
+         "etd": "2026-07-19 10:00:00.0", "nv_tipoNavio": "Carga",
+         "zona": "CAIS Y"},
+        {"navio": "ECO", "ata": "2020-11-10 14:22:00.0", "atd": ""},   # fóssil
+        {"navio": "FOX", "ata": "2026-07-17 09:00:00.0",
+         "atd": "2026-07-18 06:00:00.0"},                              # já saiu
+        {"navio": "DELTA", "ata": "2026-07-17 08:00:00.0", "atd": ""}, # dup
+        {"navio": "GOLF", "ata": "", "atd": ""},                       # sem ATA
+    ]
+    porto = jb.filtrar_em_porto(registos, agora=agora)
+    assert [n["nome"] for n in porto] == ["DELTA"]
+    assert porto[0]["etd"] == datetime(2026, 7, 19, 10, 0)
+
+
+def teste_html_em_porto():
+    ata = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S.0")
+    apl = {"em_porto": {"titulo": "t", "registos": [
+        {"navio": "DELTA", "ata": ata, "atd": "",
+         "etd": "2099-01-01 10:00:00.0", "nv_tipoNavio": "Carga",
+         "zona": "CAIS Y"}]}}
+    prev = previsao_fixa()
+    avals = [jb.avaliar_hora(h, REGRAS) for h in prev]
+    out = jb.gerar_html(prev, avals, [], apl, REGRAS)
+    assert "Em porto agora (1)" in out and "DELTA" in out
+
+
 TESTES = [teste_avaliar_hora_basico, teste_setor_circular, teste_ukc,
           teste_extrair_navios, teste_cardeal_seta,
-          teste_html_timeline_interativa, teste_svg_mare]
+          teste_html_timeline_interativa, teste_svg_mare,
+          teste_filtrar_em_porto, teste_html_em_porto]
 
 
 def main():

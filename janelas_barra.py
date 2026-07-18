@@ -44,8 +44,12 @@ SAIDA = RAIZ / "index.html"
 # páginas "Previsão de chegadas/partidas"; datas em YYYY-MM-DD.
 API_APL = "https://www.portodelisboa.pt/api/jsonws/invoke"
 SERVICOS_APL = {
-    "chegadas": ("Previsão de Chegadas (ETA)", "/apl.processosweb/get-chegadas"),
-    "partidas": ("Previsão de Partidas (ETD)", "/apl.processosweb/get-partidas"),
+    "chegadas": ("Previsão de Chegadas (ETA)",
+                 "/apl.processosweb/get-chegadas", True),
+    "partidas": ("Previsão de Partidas (ETD)",
+                 "/apl.processosweb/get-partidas", True),
+    "em_porto": ("Navios em Porto",
+                 "/apl.processoswebemporto/get-navios-em-porto", False),
 }
 
 ESTADOS = {"verde": 0, "ambar": 1, "vermelho": 2}
@@ -200,10 +204,10 @@ def recolher_apl(horas: int) -> dict:
     fim = hoje + timedelta(days=(horas // 24) + 1)
     params = {"dataIni": hoje.isoformat(), "dataFim": fim.isoformat()}
     out = {}
-    for chave, (titulo, servico) in SERVICOS_APL.items():
+    for chave, (titulo, servico, com_datas) in SERVICOS_APL.items():
         print(f"[APL] {titulo} … ", end="", flush=True)
         try:
-            corpo = json.dumps({servico: params}).encode()
+            corpo = json.dumps({servico: params if com_datas else {}}).encode()
             req = urllib.request.Request(
                 API_APL, data=corpo,
                 headers={"User-Agent": "janelas-barra",
@@ -264,6 +268,34 @@ def extrair_navios(apl: dict) -> list[dict]:
                            "tipo": (reg.get("nv_tipoNavio") or "").strip(),
                            "zona": (reg.get("zona") or "").strip()})
     return navios
+
+
+# Filtro técnico (não é limiar de decisão náutica): o serviço "em porto"
+# devolve escalas históricas antigas; só mostramos ATAs recentes.
+JANELA_PORTO_DIAS = 30
+
+
+def filtrar_em_porto(registos, agora=None) -> list[dict]:
+    """Navios atracados: ATA preenchida, ATD vazia, ATA recente.
+    Deduplica por nome; ordena da chegada mais recente para a mais antiga."""
+    agora = agora or datetime.now()
+    out, vistos = [], set()
+    for reg in registos:
+        ata = _momento(reg.get("ata"))
+        if ata is None or str(reg.get("atd") or "").strip():
+            continue
+        if (agora - ata).days > JANELA_PORTO_DIAS:
+            continue
+        nome = (reg.get("navio") or reg.get("nv_nome") or "?").strip()
+        if nome in vistos:
+            continue
+        vistos.add(nome)
+        out.append({"nome": nome, "ata": ata,
+                    "etd": _momento(reg.get("etd")),
+                    "tipo": (reg.get("nv_tipoNavio") or "").strip(),
+                    "zona": (reg.get("zona") or "").strip()})
+    out.sort(key=lambda n: n["ata"], reverse=True)
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -445,6 +477,22 @@ def gerar_html(previsao, avaliacoes, navios, apl, regras) -> str:
     svg_mare = gerar_svg_mare(previsao)
     legenda_mare = (" · curva: nível modelado (rel. MSL)" if svg_mare else "")
 
+    # --- em porto agora ----------------------------------------------------
+    em_porto = filtrar_em_porto(
+        apl.get("em_porto", {}).get("registos", []))
+    linhas_porto = []
+    for n in em_porto:
+        etd = n["etd"].strftime("%d/%m %H:%M") if n["etd"] else "—"
+        meta = " · ".join(x for x in (n["tipo"], n["zona"]) if x)
+        linhas_porto.append(
+            f"<div class='navio'><span class='farol' "
+            f"style='background:#5C6E7C'></span><div>"
+            f"<div class='nnome'>{e(n['nome'])}</div>"
+            f"<div class='nmeta'>{e(meta)}</div>"
+            f"<div class='nmeta'>ETD prevista: {etd}</div></div></div>")
+    seccao_porto = ("".join(linhas_porto) or
+                    "<p class='vazio'>Sem navios em porto nesta recolha.</p>")
+
     return f"""<!DOCTYPE html>
 <html lang="pt"><head>
 <meta charset="utf-8">
@@ -526,6 +574,11 @@ PLACEHOLDERS por validar.</div>
 <section>
  <h2>Navios (ETA/ETD da APL) na janela prevista</h2>
  {''.join(cartoes)}
+</section>
+
+<section>
+ <h2>Em porto agora ({len(em_porto)})</h2>
+ {seccao_porto}
 </section>
 
 <section>
