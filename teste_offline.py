@@ -83,8 +83,23 @@ def teste_cardeal_seta():
     assert jb.cardeal_seta(None) == ("", "")
 
 
+def teste_html_timeline_interativa():
+    prev = previsao_fixa()
+    avals = [jb.avaliar_hora(h, REGRAS) for h in prev]
+    out = jb.gerar_html(prev, avals, [], {}, REGRAS)
+    assert "Ferramenta informativa" in out            # aviso obrigatório
+    assert 'id="detalhe"' in out
+    assert "data-t='2026-07-18T00:00'" in out
+    assert "data-estado='ambar'" in out               # horas 6–11
+    assert "cel-a" in out                             # contraste no âmbar
+    assert "NW↘" in out                               # setas nos data-vals
+    assert 'http-equiv="refresh"' in out
+    assert "scrollIntoView" in out                    # JS presente
+
+
 TESTES = [teste_avaliar_hora_basico, teste_setor_circular, teste_ukc,
-          teste_extrair_navios, teste_cardeal_seta]
+          teste_extrair_navios, teste_cardeal_seta,
+          teste_html_timeline_interativa]
 
 
 def main():

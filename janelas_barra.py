@@ -271,6 +271,41 @@ def extrair_navios(apl: dict) -> list[dict]:
 # ---------------------------------------------------------------------------
 COR = {0: "#1E7A5A", 1: "#E2B93B", 2: "#C0392B"}
 
+# JS vanilla do painel (string normal — inserida no f-string via {JS_PAINEL}):
+# toque numa célula abre o detalhe; marcador de "agora" pela hora do
+# dispositivo (correto mesmo com página em cache) + auto-scroll.
+JS_PAINEL = """
+<script>
+(function () {
+  var det = document.getElementById('detalhe');
+  var cels = Array.prototype.slice.call(document.querySelectorAll('.cel'));
+  function mostrar(c) {
+    cels.forEach(function (x) { x.classList.remove('sel'); });
+    c.classList.add('sel');
+    var t = c.dataset.t;
+    var linhas = ['<b>' + t.slice(8, 10) + '/' + t.slice(5, 7) + ' ' +
+                  t.slice(11, 13) + 'h</b> — ' + c.dataset.estado];
+    if (c.dataset.motivos) linhas.push(c.dataset.motivos);
+    if (c.dataset.vals) linhas.push(c.dataset.vals);
+    det.innerHTML = linhas.join('<br>');
+    det.hidden = false;
+  }
+  cels.forEach(function (c) {
+    c.addEventListener('click', function () { mostrar(c); });
+  });
+  var ag = new Date();
+  function p2(n) { return String(n).padStart(2, '0'); }
+  var iso = ag.getFullYear() + '-' + p2(ag.getMonth() + 1) + '-' +
+            p2(ag.getDate()) + 'T' + p2(ag.getHours()) + ':00';
+  var atual = document.querySelector('.cel[data-t="' + iso + '"]');
+  if (atual) {
+    atual.classList.add('agora');
+    atual.scrollIntoView({ inline: 'center', block: 'nearest' });
+    mostrar(atual);
+  }
+})();
+</script>"""
+
 
 def gerar_html(previsao, avaliacoes, navios, apl, regras) -> str:
     e = html.escape
@@ -281,20 +316,34 @@ def gerar_html(previsao, avaliacoes, navios, apl, regras) -> str:
     for hora, (estado, motivos) in zip(previsao, avaliacoes):
         t = hora["tempo"]  # "2026-07-18T14:00"
         dia, hh = t[8:10], t[11:13]
+        vals = []
+        if hora.get("swell_altura") is not None:
+            nome, seta = cardeal_seta(hora.get("swell_dir"))
+            per = (f" {hora['swell_periodo']:g} s"
+                   if hora.get("swell_periodo") is not None else "")
+            vals.append(f"swell {hora['swell_altura']:g} m {nome}{seta}{per}")
+        if hora.get("nivel_mar") is not None:
+            vals.append(f"nível {hora['nivel_mar']:+g} m")
+        if hora.get("vento_kn") is not None:
+            nome, seta = cardeal_seta(hora.get("vento_dir"))
+            raj = (f" (raj {hora['rajada_kn']:g})"
+                   if hora.get("rajada_kn") is not None else "")
+            vals.append(f"vento {hora['vento_kn']:g} kn {nome}{seta}{raj}")
+        vals_txt = " · ".join(vals)
+        mot_txt = "; ".join(motivos)
         tip = f"{dia}/{t[5:7]} {hh}h — {ESTADO_NOME[estado]}"
-        if motivos:
-            tip += " · " + "; ".join(motivos)
-        extra = []
-        for chave, rot in (("swell_altura", "swell"), ("nivel_mar", "nível"),
-                           ("vento_kn", "vento")):
-            v = hora.get(chave)
-            if v is not None:
-                extra.append(f"{rot} {v:g}")
-        tip += " · " + ", ".join(extra)
+        if mot_txt:
+            tip += " · " + mot_txt
+        if vals_txt:
+            tip += " · " + vals_txt
         marca_dia = f"<span class='dia'>{dia}</span>" if hh == "00" else ""
+        extra_cls = " cel-a" if estado == 1 else ""
         celulas.append(
-            f"<div class='cel' style='background:{COR[estado]}' "
-            f"title=\"{e(tip)}\">{marca_dia}<span class='hh'>{hh}</span></div>")
+            f"<div class='cel{extra_cls}' style='background:{COR[estado]}' "
+            f"title=\"{e(tip)}\" data-t='{t}' "
+            f"data-estado='{ESTADO_NOME[estado]}' "
+            f"data-motivos=\"{e(mot_txt)}\" data-vals=\"{e(vals_txt)}\">"
+            f"{marca_dia}<span class='hh'>{hh}</span></div>")
 
     # --- navios ------------------------------------------------------------
     cartoes = []
@@ -352,6 +401,7 @@ def gerar_html(previsao, avaliacoes, navios, apl, regras) -> str:
 <html lang="pt"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="900">
 <title>Janelas da Barra · Lisboa</title>
 <style>
  :root {{ --tinta:#1B2A38; --agua:#DCEBF1; --papel:#F7F5EF; --mag:#B0257C; }}
@@ -366,7 +416,13 @@ def gerar_html(previsao, avaliacoes, navios, apl, regras) -> str:
  section {{ background:var(--papel); border:2px solid var(--tinta);
            border-radius:12px; margin:12px; padding:12px; }}
  h2 {{ font-size:16px; margin:0 0 8px; }}
- .timeline {{ display:flex; overflow-x:auto; gap:2px; padding-bottom:6px; }}
+ .scroll {{ overflow-x:auto; padding-bottom:6px; }}
+ .timeline {{ display:flex; gap:2px; }}
+ .cel.agora {{ outline:3px solid var(--mag); outline-offset:-1px; }}
+ .cel.sel {{ box-shadow:inset 0 0 0 2px var(--tinta); }}
+ .cel-a .hh, .cel-a .dia {{ color:#1B2A38; }}
+ #detalhe {{ margin-top:8px; padding:8px 10px; border:1.5px dashed var(--tinta);
+            border-radius:8px; font-size:13px; line-height:1.45; }}
  .cel {{ min-width:22px; height:46px; border-radius:4px; position:relative;
         color:#fff; }}
  .cel .hh {{ position:absolute; bottom:2px; left:0; right:0;
@@ -404,7 +460,10 @@ PLACEHOLDERS por validar.</div>
 
 <section>
  <h2>Próximas {len(celulas)} horas</h2>
- <div class="timeline">{''.join(celulas)}</div>
+ <div class="scroll">
+  <div class="timeline">{''.join(celulas)}</div>
+ </div>
+ <div id="detalhe" hidden></div>
  <div class="legenda">Toca/paira numa hora para ver os motivos.
   <span class="dot" style="background:{COR[0]}"></span>verde
   <span class="dot" style="background:{COR[1]}"></span>âmbar
@@ -426,6 +485,7 @@ PLACEHOLDERS por validar.</div>
 <footer>Nível do mar: modelo Open-Meteo (não são as tabelas oficiais do
 Instituto Hidrográfico). Dados APL © Administração do Porto de Lisboa.
 Projeto pessoal, código aberto.</footer>
+{JS_PAINEL}
 </body></html>"""
 
 
