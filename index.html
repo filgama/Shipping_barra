@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="pt"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Janelas da Barra · Lisboa</title>
+<style>
+ :root { --tinta:#1B2A38; --agua:#DCEBF1; --papel:#F7F5EF; --mag:#B0257C; }
+ * { box-sizing:border-box; }
+ body { margin:0; background:var(--agua); color:var(--tinta);
+        font-family:system-ui,-apple-system,sans-serif; }
+ header { padding:16px 16px 8px; }
+ h1 { margin:0; font-size:24px; }
+ .sub { font-size:12px; color:#5C6E7C; margin-top:4px; }
+ .aviso { background:var(--tinta); color:var(--papel); font-size:12px;
+          padding:8px 16px; }
+ section { background:var(--papel); border:2px solid var(--tinta);
+           border-radius:12px; margin:12px; padding:12px; }
+ h2 { font-size:16px; margin:0 0 8px; }
+ .timeline { display:flex; overflow-x:auto; gap:2px; padding-bottom:6px; }
+ .cel { min-width:22px; height:46px; border-radius:4px; position:relative;
+        color:#fff; }
+ .cel .hh { position:absolute; bottom:2px; left:0; right:0;
+            text-align:center; font-size:9px; opacity:.9; }
+ .cel .dia { position:absolute; top:2px; left:0; right:0; text-align:center;
+             font-size:9px; font-weight:700; }
+ .legenda { font-size:11px; color:#5C6E7C; margin-top:6px; }
+ .dot { display:inline-block; width:9px; height:9px; border-radius:50%;
+        margin:0 3px 0 8px; }
+ .navio { display:flex; gap:10px; padding:10px 0;
+          border-bottom:1px solid #D7DFE4; }
+ .navio:last-child { border-bottom:none; }
+ .farol { flex:0 0 12px; height:12px; border-radius:50%; margin-top:4px; }
+ .nnome { font-weight:600; font-size:15px; }
+ .nmeta { font-size:12px; color:#5C6E7C; }
+ .nmot { font-size:12px; margin-top:2px; }
+ table { border-collapse:collapse; width:100%; font-size:12px; }
+ th,td { border:1px solid #B9C6CF; padding:5px 6px; text-align:left; }
+ th { background:var(--tinta); color:var(--papel); }
+ .fonte-ph { color:var(--mag); font-weight:600; }
+ .fonte-ok { color:#1E7A5A; }
+ ul { margin:6px 0 0; padding-left:18px; font-size:12px; }
+ .vazio { color:#5C6E7C; font-style:italic; font-size:13px; }
+ footer { font-size:11px; color:#5C6E7C; padding:0 16px 20px; }
+</style></head>
+<body>
+<header>
+ <h1>Janelas da Barra — Lisboa</h1>
+ <div class="sub">Atualizado: 18/07/2026 16:35 · APL + Open-Meteo Marine ·
+ limiares em regras.toml</div>
+</header>
+<div class="aviso">⚠ Ferramenta informativa. Não substitui JUP, VTS-Lisboa,
+Capitania nem o juízo profissional do piloto. Limiares a magenta são
+PLACEHOLDERS por validar.</div>
+
+<section>
+ <h2>Próximas 72 horas</h2>
+ <div class="timeline"><div class='cel' style='background:#1E7A5A' title="18/07 00h — verde · swell 0.32, nível -1.76, vento 7.9"><span class='dia'>18</span><span class='hh'>00</span></div><div class='cel' style='background:#1E7A5A' title="18/07 01h — verde · swell 0.34, nível -1.46, vento 7.2"><span class='hh'>01</span></div><div class='cel' style='background:#1E7A5A' title="18/07 02h — verde · swell 0.36, nível -0.91, vento 6.4"><span class='hh'>02</span></div><div class='cel' style='background:#1E7A5A' title="18/07 03h — verde · swell 0.38, nível -0.24, vento 5.4"><span class='hh'>03</span></div><div class='cel' style='background:#1E7A5A' title="18/07 04h — verde · swell 0.4, nível 0.36, vento 5"><span class='hh'>04</span></div><div class='cel' style='background:#1E7A5A' title="18/07 05h — verde · swell 0.42, nível 0.74, vento 4"><span class='hh'>05</span></div><div class='cel' style='background:#1E7A5A' title="18/07 06h — verde · swell 0.42, nível 0.8, vento 3"><span class='hh'>06</span></div><div class='cel' style='background:#1E7A5A' title="18/07 07h — verde · swell 0.44, nível 0.53, vento 3.5"><span class='hh'>07</span></div><div class='cel' style='background:#1E7A5A' title="18/07 08h — verde · swell 0.4, nível 0, vento 3.8"><span class='hh'>08</span></div><div class='cel' style='background:#1E7A5A' title="18/07 09h — verde · swell 0.38, nível -0.63, vento 5.8"><span class='hh'>09</span></div><div class='cel' style='background:#1E7A5A' title="18/07 10h — verde · swell 0.34, nível -1.18, vento 7.4"><span class='hh'>10</span></div><div class='cel' style='background:#1E7A5A' title="18/07 11h — verde · swell 0.3, nível -1.51, vento 8.3"><span class='hh'>11</span></div><div class='cel' style='background:#1E7A5A' title="18/07 12h — verde · swell 0.24, nível -1.56, vento 8.9"><span class='hh'>12</span></div><div class='cel' style='background:#1E7A5A' title="18/07 13h — verde · swell 0.2, nível -1.3, vento 10.4"><span class='hh'>13</span></div><div class='cel' style='background:#1E7A5A' title="18/07 14h — verde · swell 0.22, nível -0.8, vento 11.4"><span class='hh'>14</span></div><div class='cel' style='background:#1E7A5A' title="18/07 15h — verde · swell 0.24, nível -0.16, vento 11.4"><span class='hh'>15</span></div><div class='cel' style='background:#1E7A5A' title="18/07 16h — verde · swell 0.26, nível 0.46, vento 11.3"><span class='hh'>16</span></div><div class='cel' style='background:#1E7A5A' title="18/07 17h — verde · swell 0.24, nível 0.91, vento 11.4"><span class='hh'>17</span></div><div class='cel' style='background:#1E7A5A' title="18/07 18h — verde · swell 0.24, nível 1.06, vento 11.7"><span class='hh'>18</span></div><div class='cel' style='background:#1E7A5A' title="18/07 19h — verde · swell 0.22, nível 0.88, vento 11.3"><span class='hh'>19</span></div><div class='cel' style='background:#1E7A5A' title="18/07 20h — verde · swell 0.26, nível 0.4, vento 10.4"><span class='hh'>20</span></div><div class='cel' style='background:#1E7A5A' title="18/07 21h — verde · swell 0.3, nível -0.25, vento 9.4"><span class='hh'>21</span></div><div class='cel' style='background:#1E7A5A' title="18/07 22h — verde · swell 0.34, nível -0.89, vento 8.5"><span class='hh'>22</span></div><div class='cel' style='background:#1E7A5A' title="18/07 23h — verde · swell 0.42, nível -1.38, vento 7.6"><span class='hh'>23</span></div><div class='cel' style='background:#1E7A5A' title="19/07 00h — verde · swell 0.48, nível -1.61, vento 7.1"><span class='dia'>19</span><span class='hh'>00</span></div><div class='cel' style='background:#1E7A5A' title="19/07 01h — verde · swell 0.56, nível -1.54, vento 7.2"><span class='hh'>01</span></div><div class='cel' style='background:#1E7A5A' title="19/07 02h — verde · swell 0.56, nível -1.2, vento 6.2"><span class='hh'>02</span></div><div class='cel' style='background:#1E7A5A' title="19/07 03h — verde · swell 0.56, nível -0.68, vento 4.8"><span class='hh'>03</span></div><div class='cel' style='background:#1E7A5A' title="19/07 04h — verde · swell 0.56, nível -0.09, vento 5.1"><span class='hh'>04</span></div><div class='cel' style='background:#1E7A5A' title="19/07 05h — verde · swell 0.58, nível 0.39, vento 5"><span class='hh'>05</span></div><div class='cel' style='background:#1E7A5A' title="19/07 06h — verde · swell 0.58, nível 0.66, vento 4.6"><span class='hh'>06</span></div><div class='cel' style='background:#1E7A5A' title="19/07 07h — verde · swell 0.6, nível 0.64, vento 4.4"><span class='hh'>07</span></div><div class='cel' style='background:#1E7A5A' title="19/07 08h — verde · swell 0.62, nível 0.33, vento 4.3"><span class='hh'>08</span></div><div class='cel' style='background:#1E7A5A' title="19/07 09h — verde · swell 0.62, nível -0.17, vento 7.2"><span class='hh'>09</span></div><div class='cel' style='background:#1E7A5A' title="19/07 10h — verde · swell 0.64, nível -0.72, vento 7.9"><span class='hh'>10</span></div><div class='cel' style='background:#1E7A5A' title="19/07 11h — verde · swell 0.62, nível -1.16, vento 8.2"><span class='hh'>11</span></div><div class='cel' style='background:#1E7A5A' title="19/07 12h — verde · swell 0.6, nível -1.4, vento 9.1"><span class='hh'>12</span></div><div class='cel' style='background:#1E7A5A' title="19/07 13h — verde · swell 0.58, nível -1.38, vento 9.5"><span class='hh'>13</span></div><div class='cel' style='background:#1E7A5A' title="19/07 14h — verde · swell 0.54, nível -1.1, vento 9.9"><span class='hh'>14</span></div><div class='cel' style='background:#1E7A5A' title="19/07 15h — verde · swell 0.52, nível -0.63, vento 10.8"><span class='hh'>15</span></div><div class='cel' style='background:#1E7A5A' title="19/07 16h — verde · swell 0.48, nível -0.08, vento 11.4"><span class='hh'>16</span></div><div class='cel' style='background:#1E7A5A' title="19/07 17h — verde · swell 0.46, nível 0.43, vento 11.4"><span class='hh'>17</span></div><div class='cel' style='background:#1E7A5A' title="19/07 18h — verde · swell 0.44, nível 0.76, vento 11"><span class='hh'>18</span></div><div class='cel' style='background:#1E7A5A' title="19/07 19h — verde · swell 0.42, nível 0.82, vento 10.9"><span class='hh'>19</span></div><div class='cel' style='background:#1E7A5A' title="19/07 20h — verde · swell 0.42, nível 0.6, vento 9.9"><span class='hh'>20</span></div><div class='cel' style='background:#1E7A5A' title="19/07 21h — verde · swell 0.42, nível 0.14, vento 8.1"><span class='hh'>21</span></div><div class='cel' style='background:#1E7A5A' title="19/07 22h — verde · swell 0.42, nível -0.42, vento 5.8"><span class='hh'>22</span></div><div class='cel' style='background:#1E7A5A' title="19/07 23h — verde · swell 0.46, nível -0.94, vento 4.7"><span class='hh'>23</span></div><div class='cel' style='background:#1E7A5A' title="20/07 00h — verde · swell 0.48, nível -1.3, vento 4.5"><span class='dia'>20</span><span class='hh'>00</span></div><div class='cel' style='background:#1E7A5A' title="20/07 01h — verde · swell 0.52, nível -1.42, vento 4.3"><span class='hh'>01</span></div><div class='cel' style='background:#1E7A5A' title="20/07 02h — verde · swell 0.54, nível -1.3, vento 4.4"><span class='hh'>02</span></div><div class='cel' style='background:#1E7A5A' title="20/07 03h — verde · swell 0.56, nível -0.97, vento 5"><span class='hh'>03</span></div><div class='cel' style='background:#1E7A5A' title="20/07 04h — verde · swell 0.58, nível -0.51, vento 4.3"><span class='hh'>04</span></div><div class='cel' style='background:#1E7A5A' title="20/07 05h — verde · swell 0.6, nível -0.03, vento 5"><span class='hh'>05</span></div><div class='cel' style='background:#1E7A5A' title="20/07 06h — verde · swell 0.62, nível 0.34, vento 4.4"><span class='hh'>06</span></div><div class='cel' style='background:#1E7A5A' title="20/07 07h — verde · swell 0.64, nível 0.51, vento 3.8"><span class='hh'>07</span></div><div class='cel' style='background:#1E7A5A' title="20/07 08h — verde · swell 0.64, nível 0.44, vento 4"><span class='hh'>08</span></div><div class='cel' style='background:#1E7A5A' title="20/07 09h — verde · swell 0.66, nível 0.14, vento 6.2"><span class='hh'>09</span></div><div class='cel' style='background:#1E7A5A' title="20/07 10h — verde · swell 0.66, nível -0.3, vento 6.7"><span class='hh'>10</span></div><div class='cel' style='background:#1E7A5A' title="20/07 11h — verde · swell 0.68, nível -0.75, vento 7.4"><span class='hh'>11</span></div><div class='cel' style='background:#1E7A5A' title="20/07 12h — verde · swell 0.68, nível -1.09, vento 8"><span class='hh'>12</span></div><div class='cel' style='background:#1E7A5A' title="20/07 13h — verde · swell 0.7, nível -1.24, vento 8.9"><span class='hh'>13</span></div><div class='cel' style='background:#1E7A5A' title="20/07 14h — verde · swell 0.68, nível -1.17, vento 9.9"><span class='hh'>14</span></div><div class='cel' style='background:#1E7A5A' title="20/07 15h — verde · swell 0.68, nível -0.91, vento 10.3"><span class='hh'>15</span></div><div class='cel' style='background:#1E7A5A' title="20/07 16h — verde · swell 0.66, nível -0.51, vento 10.3"><span class='hh'>16</span></div><div class='cel' style='background:#1E7A5A' title="20/07 17h — verde · swell 0.66, nível -0.06, vento 10.3"><span class='hh'>17</span></div><div class='cel' style='background:#1E7A5A' title="20/07 18h — verde · swell 0.66, nível 0.32, vento 10"><span class='hh'>18</span></div><div class='cel' style='background:#1E7A5A' title="20/07 19h — verde · swell 0.66, nível 0.55, vento 10"><span class='hh'>19</span></div><div class='cel' style='background:#1E7A5A' title="20/07 20h — verde · swell 0.66, nível 0.55, vento 9"><span class='hh'>20</span></div><div class='cel' style='background:#1E7A5A' title="20/07 21h — verde · swell 0.66, nível 0.32, vento 7.3"><span class='hh'>21</span></div><div class='cel' style='background:#1E7A5A' title="20/07 22h — verde · swell 0.66, nível -0.07, vento 5.4"><span class='hh'>22</span></div><div class='cel' style='background:#1E7A5A' title="20/07 23h — verde · swell 0.66, nível -0.53, vento 4.2"><span class='hh'>23</span></div></div>
+ <div class="legenda">Toca/paira numa hora para ver os motivos.
+  <span class="dot" style="background:#1E7A5A"></span>verde
+  <span class="dot" style="background:#E2B93B"></span>âmbar
+  <span class="dot" style="background:#C0392B"></span>vermelho</div>
+</section>
+
+<section>
+ <h2>Navios (ETA/ETD da APL) na janela prevista</h2>
+ 
+        <div class="navio">
+          <span class="farol" style="background:#1E7A5A"></span>
+          <div>
+            <div class="nnome">GRETA K</div>
+            <div class="nmeta">entrada · 18/07 23:59 · calado 9.2 m · Tanque Petroleiro</div>
+            <div class='nmeta'>TERM COMB REPSOL/BANATICA</div>
+            <div class="nmot">condições dentro dos limiares; UKC ok: água ≈13.6 m, folga 4.4 m (48% do calado)</div>
+          </div>
+        </div>
+        <div class="navio">
+          <span class="farol" style="background:#1E7A5A"></span>
+          <div>
+            <div class="nnome">WOOYANG CLES</div>
+            <div class="nmeta">entrada · 19/07 01:00 · calado 7.96 m · Carga Geral</div>
+            <div class='nmeta'>TERM GRANEIS SOVENA/PALENÇA</div>
+            <div class="nmot">condições dentro dos limiares; UKC ok: água ≈13.5 m, folga 5.5 m (69% do calado)</div>
+          </div>
+        </div>
+        <div class="navio">
+          <span class="farol" style="background:#1E7A5A"></span>
+          <div>
+            <div class="nnome">IRENES RESOLVE</div>
+            <div class="nmeta">entrada · 19/07 05:00 · calado 8.3 m · Porta-contentores</div>
+            <div class='nmeta'>TERM CONTENT ALCANTARA /  LISCONT</div>
+            <div class="nmot">condições dentro dos limiares; UKC ok: água ≈15.4 m, folga 7.1 m (85% do calado)</div>
+          </div>
+        </div>
+        <div class="navio">
+          <span class="farol" style="background:#E2B93B"></span>
+          <div>
+            <div class="nnome">SMIRNI</div>
+            <div class="nmeta">entrada · 19/07 05:00 · calado 13.5 m · Graneleiro</div>
+            <div class='nmeta'>TERM GRANEIS SOVENA/PALENÇA</div>
+            <div class="nmot">condições dentro dos limiares; UKC marginal: água ≈15.4 m, folga 1.9 m (14% do calado)</div>
+          </div>
+        </div>
+        <div class="navio">
+          <span class="farol" style="background:#1E7A5A"></span>
+          <div>
+            <div class="nnome">JAIME S</div>
+            <div class="nmeta">entrada · 19/07 07:00 · calado 6 m · Porta-Contentores</div>
+            <div class='nmeta'>TERM CONTENT STª APOLONIA/SOTAGUS</div>
+            <div class="nmot">condições dentro dos limiares; UKC ok: água ≈15.6 m, folga 9.6 m (161% do calado)</div>
+          </div>
+        </div>
+        <div class="navio">
+          <span class="farol" style="background:#1E7A5A"></span>
+          <div>
+            <div class="nnome">HANSA ROTENBURG</div>
+            <div class="nmeta">entrada · 19/07 17:00 · calado 8 m · Porta-Contentores</div>
+            <div class='nmeta'>TERM CONTENT ALCANTARA /  LISCONT</div>
+            <div class="nmot">condições dentro dos limiares; UKC ok: água ≈15.4 m, folga 7.4 m (93% do calado)</div>
+          </div>
+        </div>
+        <div class="navio">
+          <span class="farol" style="background:#1E7A5A"></span>
+          <div>
+            <div class="nnome">BOKA SUB C</div>
+            <div class="nmeta">entrada · 19/07 18:00 · calado 7 m · Navio de providencia de bens</div>
+            <div class='nmeta'>EST.ASSIST.NAVAL PORTO LISBOA</div>
+            <div class="nmot">condições dentro dos limiares; UKC ok: água ≈15.8 m, folga 8.8 m (125% do calado)</div>
+          </div>
+        </div>
+        <div class="navio">
+          <span class="farol" style="background:#1E7A5A"></span>
+          <div>
+            <div class="nnome">MONTE BRASIL</div>
+            <div class="nmeta">entrada · 20/07 06:00 · calado 6.3 m · Porta-contentores</div>
+            <div class='nmeta'>TERMINAL MULTIPURPOSE DE LISBOA</div>
+            <div class="nmot">condições dentro dos limiares; UKC ok: água ≈15.3 m, folga 9.0 m (143% do calado)</div>
+          </div>
+        </div>
+        <div class="navio">
+          <span class="farol" style="background:#1E7A5A"></span>
+          <div>
+            <div class="nnome">Seven Seas Voyager</div>
+            <div class="nmeta">entrada · 20/07 06:00 · calado 7.1 m · CRUZEIROS</div>
+            <div class='nmeta'>CAIS DE STª APOLONIA/TERMINAL DE PASSAGEIROS</div>
+            <div class="nmot">condições dentro dos limiares; UKC ok: água ≈15.3 m, folga 8.2 m (116% do calado)</div>
+          </div>
+        </div>
+        <div class="navio">
+          <span class="farol" style="background:#1E7A5A"></span>
+          <div>
+            <div class="nnome">CAPT. KATTELMAN</div>
+            <div class="nmeta">entrada · 20/07 06:00 · calado 7 m · Porta-Contentores</div>
+            <div class='nmeta'>TERM CONTENT ALCANTARA /  LISCONT</div>
+            <div class="nmot">condições dentro dos limiares; UKC ok: água ≈15.3 m, folga 8.3 m (119% do calado)</div>
+          </div>
+        </div>
+        <div class="navio">
+          <span class="farol" style="background:#1E7A5A"></span>
+          <div>
+            <div class="nnome">TEOS</div>
+            <div class="nmeta">entrada · 20/07 08:00 · calado 5.5 m · Carga Geral multi deck</div>
+            <div class='nmeta'>TERMINAL MULTIPURPOSE DE LISBOA</div>
+            <div class="nmot">condições dentro dos limiares; UKC ok: água ≈15.4 m, folga 9.9 m (181% do calado)</div>
+          </div>
+        </div>
+        <div class="navio">
+          <span class="farol" style="background:#1E7A5A"></span>
+          <div>
+            <div class="nnome">BOMAR HAWK</div>
+            <div class="nmeta">entrada · 20/07 09:00 · calado 9.8 m · Tanque Químico</div>
+            <div class='nmeta'>EST.ASSIST.NAVAL PORTO LISBOA</div>
+            <div class="nmot">condições dentro dos limiares; UKC ok: água ≈15.1 m, folga 5.3 m (54% do calado)</div>
+          </div>
+        </div>
+        <div class="navio">
+          <span class="farol" style="background:#1E7A5A"></span>
+          <div>
+            <div class="nnome">GULF BLUE</div>
+            <div class="nmeta">entrada · 20/07 09:00 · calado 3.5 m · Misto - Carga geral / Contentores</div>
+            <div class='nmeta'>CAIS DO POÇO DO BISPO / TMPB</div>
+            <div class="nmot">condições dentro dos limiares; UKC ok: água ≈15.1 m, folga 11.6 m (333% do calado)</div>
+          </div>
+        </div>
+        <div class="navio">
+          <span class="farol" style="background:#1E7A5A"></span>
+          <div>
+            <div class="nnome">SEAHOPE</div>
+            <div class="nmeta">entrada · 20/07 09:00 · calado 10.12 m · Graneleiro</div>
+            <div class='nmeta'>TERM CONTENT ALCANTARA/LISCONT-JUSANTE</div>
+            <div class="nmot">condições dentro dos limiares; UKC ok: água ≈15.1 m, folga 5.0 m (50% do calado)</div>
+          </div>
+        </div>
+        <div class="navio">
+          <span class="farol" style="background:#1E7A5A"></span>
+          <div>
+            <div class="nnome">MH SHOGUN</div>
+            <div class="nmeta">entrada · 20/07 12:00 · calado 8.5 m · Petroleiro para carregamento de crude</div>
+            <div class='nmeta'>TERM GRANEIS CHANE/BARREIRO</div>
+            <div class="nmot">condições dentro dos limiares; UKC ok: água ≈13.9 m, folga 5.4 m (64% do calado)</div>
+          </div>
+        </div>
+        <div class="navio">
+          <span class="farol" style="background:#1E7A5A"></span>
+          <div>
+            <div class="nnome">EA GANNET</div>
+            <div class="nmeta">entrada · 20/07 15:01 · calado 8 m · Porta-Contentores</div>
+            <div class='nmeta'>TERM CONTENT ALCANTARA /  LISCONT</div>
+            <div class="nmot">condições dentro dos limiares; UKC ok: água ≈14.1 m, folga 6.1 m (76% do calado)</div>
+          </div>
+        </div>
+        <div class="navio">
+          <span class="farol" style="background:#1E7A5A"></span>
+          <div>
+            <div class="nnome">WEC CORNEILLE</div>
+            <div class="nmeta">entrada · 20/07 23:00 · calado 8 m · Porta-contentores</div>
+            <div class='nmeta'>FUNDEADOURO QUADRO CENTRAL</div>
+            <div class="nmot">condições dentro dos limiares; UKC ok: água ≈14.5 m, folga 6.5 m (81% do calado)</div>
+          </div>
+        </div>
+        <div class="navio">
+          <span class="farol" style="background:#5C6E7C"></span>
+          <div>
+            <div class="nnome">CTM ISTMO</div>
+            <div class="nmeta">entrada · 21/07 07:00 · calado 8.9 m · Porta-contentores</div>
+            <div class='nmeta'>TERM CONTENT ALCANTARA /  LISCONT</div>
+            <div class="nmot">fora do horizonte da previsão</div>
+          </div>
+        </div>
+        <div class="navio">
+          <span class="farol" style="background:#5C6E7C"></span>
+          <div>
+            <div class="nnome">SINAR BUKITTINGGI</div>
+            <div class="nmeta">entrada · 21/07 07:00 · calado 8.7 m · Porta-Contentores</div>
+            <div class='nmeta'>TERM CONTENT ALCANTARA /  LISCONT</div>
+            <div class="nmot">fora do horizonte da previsão</div>
+          </div>
+        </div>
+        <div class="navio">
+          <span class="farol" style="background:#5C6E7C"></span>
+          <div>
+            <div class="nnome">GALBOT</div>
+            <div class="nmeta">entrada · 21/07 09:00 · calado 7.1 m · Tanque Químico</div>
+            <div class='nmeta'>EST.ASSIST.NAVAL PORTO LISBOA</div>
+            <div class="nmot">fora do horizonte da previsão</div>
+          </div>
+        </div>
+        <div class="navio">
+          <span class="farol" style="background:#5C6E7C"></span>
+          <div>
+            <div class="nnome">FIRDEVS</div>
+            <div class="nmeta">entrada · 21/07 10:00 · calado 5.45 m · Misto - Carga geral / Contentores</div>
+            <div class='nmeta'>TERM.GR.ALIM.BEATO / SILOTAGUS</div>
+            <div class="nmot">fora do horizonte da previsão</div>
+          </div>
+        </div>
+        <div class="navio">
+          <span class="farol" style="background:#5C6E7C"></span>
+          <div>
+            <div class="nnome">AFINA I</div>
+            <div class="nmeta">entrada · 21/07 12:00 · calado 5.1 m · Carga Geral</div>
+            <div class='nmeta'>CAIS DO BEATO / TMB</div>
+            <div class="nmot">fora do horizonte da previsão</div>
+          </div>
+        </div>
+        <div class="navio">
+          <span class="farol" style="background:#5C6E7C"></span>
+          <div>
+            <div class="nnome">X-PRESS KAVERI</div>
+            <div class="nmeta">entrada · 21/07 16:00 · calado 7 m · Porta-Contentores</div>
+            <div class='nmeta'>TERM CONTENT ALCANTARA /  LISCONT</div>
+            <div class="nmot">fora do horizonte da previsão</div>
+          </div>
+        </div>
+        <div class="navio">
+          <span class="farol" style="background:#5C6E7C"></span>
+          <div>
+            <div class="nnome">EASTERN HEATHER</div>
+            <div class="nmeta">entrada · 21/07 16:00 · calado 131 m · Graneleiro</div>
+            <div class='nmeta'>TERM GRANEIS SOVENA/PALENÇA</div>
+            <div class="nmot">fora do horizonte da previsão</div>
+          </div>
+        </div>
+        <div class="navio">
+          <span class="farol" style="background:#5C6E7C"></span>
+          <div>
+            <div class="nnome">API BHUM</div>
+            <div class="nmeta">entrada · 21/07 19:00 · calado 10 m · Porta-Contentores</div>
+            <div class='nmeta'>TERM CONTENT ALCANTARA /  LISCONT</div>
+            <div class="nmot">fora do horizonte da previsão</div>
+          </div>
+        </div>
+        <div class="navio">
+          <span class="farol" style="background:#5C6E7C"></span>
+          <div>
+            <div class="nnome">ULTIMAX</div>
+            <div class="nmeta">entrada · 22/07 08:00 · calado 7.64 m · Carga Geral / Toros e Madeira</div>
+            <div class='nmeta'>FUNDEADOURO QUADRO CENTRAL</div>
+            <div class="nmot">fora do horizonte da previsão</div>
+          </div>
+        </div>
+        <div class="navio">
+          <span class="farol" style="background:#5C6E7C"></span>
+          <div>
+            <div class="nnome">MANDO</div>
+            <div class="nmeta">entrada · 22/07 16:00 · calado 8 m · Porta-contentores</div>
+            <div class='nmeta'>TERM CONTENT ALCANTARA /  LISCONT</div>
+            <div class="nmot">fora do horizonte da previsão</div>
+          </div>
+        </div>
+        <div class="navio">
+          <span class="farol" style="background:#5C6E7C"></span>
+          <div>
+            <div class="nnome">CANNETO M</div>
+            <div class="nmeta">entrada · 22/07 20:30 · calado 7 m · Petroleiro para carregamento de crude</div>
+            <div class='nmeta'>TERM GRANEIS CHANE/BARREIRO</div>
+            <div class="nmot">fora do horizonte da previsão</div>
+          </div>
+        </div>
+</section>
+
+<section>
+ <h2>Regras em vigor</h2>
+ <table><thead><tr><th>Regra</th><th>Âmbar</th><th>Vermelho</th>
+ <th>Fonte</th></tr></thead><tbody><tr><td>Ondulação (swell) de W/SW na aproximação</td><td>≥ 2.5</td><td>≥ 3.5</td><td class='fonte-ph'>PLACEHOLDER — validar com piloto</td></tr><tr><td>Período de swell longo (mar de fundo pesado)</td><td>≥ 12</td><td>≥ 16</td><td class='fonte-ph'>PLACEHOLDER — validar com piloto</td></tr><tr><td>Altura significativa total (mar composto)</td><td>≥ 3</td><td>≥ 4.5</td><td class='fonte-ph'>PLACEHOLDER — validar com piloto</td></tr><tr><td>Vento médio a 10 m</td><td>≥ 25</td><td>≥ 35</td><td class='fonte-ph'>PLACEHOLDER — validar com piloto</td></tr><tr><td>Rajada</td><td>≥ 35</td><td>≥ 45</td><td class='fonte-ph'>PLACEHOLDER — validar com piloto</td></tr></tbody></table>
+ <ul><li>O Capitão do Porto pode fechar ou condicionar a barra com base nas condições de tempo e mar, ouvida a Autoridade Portuária (Edital CPL).</li><li>Pilotagem obrigatória desde fora das barras para os navios abrangidos; embarque do piloto conforme Regulamento de Autoridade Portuária da APL.</li><li>Navios-tanque com cargas perigosas das classes 2, 6 e 8 têm restrições específicas (Regulamento APL).</li><li>Avisos em vigor: VTS-Lisboa, Capitania e ANAVNET (anavnet.hidrografico.pt).</li></ul>
+</section>
+
+<footer>Nível do mar: modelo Open-Meteo (não são as tabelas oficiais do
+Instituto Hidrográfico). Dados APL © Administração do Porto de Lisboa.
+Projeto pessoal, código aberto.</footer>
+</body></html>

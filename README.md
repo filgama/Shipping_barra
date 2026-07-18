@@ -10,9 +10,9 @@ verde / âmbar / vermelho segundo regras editáveis em `regras.toml`.
 
 ## Correr no PC
 
+Basta Python 3.11+ — sem dependências externas:
+
 ```bash
-pip install -r requirements.txt
-playwright install chromium
 python janelas_barra.py
 ```
 

@@ -1,1 +1,2 @@
-playwright>=1.44
+# Sem dependências externas: o script usa apenas a stdlib (>= Python 3.11).
+# A APL é consultada via API JSON pública; o Open-Meteo via urllib.

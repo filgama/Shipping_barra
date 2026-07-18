@@ -63,12 +63,19 @@ barra em texto ou código — se falta um dado, marcar `PLACEHOLDER`.
 
 ## Fontes de dados: particularidades
 
-- **APL**: tabelas carregadas por JavaScript (Liferay) → é obrigatório
-  browser headless (Playwright). Não tentar `requests`+`BeautifulSoup`, não
-  funciona. O parser (`extrair_navios`) é tolerante: procura colunas por
-  palavras-chave (navio/eta/calado) e datas por regex. Se a APL mudar o
-  layout, ajustar `_idx_coluna`/`RE_DATA`, não reescrever tudo.
-  O scraping é de páginas públicas; se o projeto crescer, o caminho certo é
+- **APL**: os dados vêm da API JSON pública do portal (Liferay):
+  `POST https://www.portodelisboa.pt/api/jsonws/invoke` com corpo
+  `{"/apl.processosweb/get-chegadas": {"dataIni": "YYYY-MM-DD", "dataFim": ...}}`
+  (idem `get-partidas`; existe ainda
+  `/apl.processoswebemporto/get-navios-em-porto`, sem parâmetros, não usado).
+  Responde a `urllib` simples — **não é preciso browser headless**; o
+  Playwright foi removido em 2026-07-18 depois de descobrir a API (os
+  serviços estão visíveis no JS público das páginas de chegadas/partidas).
+  Campos úteis: `navio`, `eta`/`etd`, `ata`/`atd` (reais — se preenchidos, a
+  escala já se concretizou), `caladoMaxEntrada`/`caladoMaxSaida`,
+  `nv_tipoNavio`, `zona`, `imo`. A resposta pode incluir duplicados — o
+  próprio portal deduplica por (navio, eta); `extrair_navios` faz o mesmo.
+  A consulta é a um endpoint público; se o projeto crescer, o caminho certo é
   pedir acesso formal aos dados à APL.
 - **Open-Meteo**: grátis, sem chave, CORS aberto. `sea_level_height_msl` é
   **maré modelada relativa ao MSL**, não a tabela oficial do IH — o cálculo
@@ -83,7 +90,7 @@ barra em texto ou código — se falta um dado, marcar `PLACEHOLDER`.
 - Português europeu em código, comentários, UI e commits. Terminologia
   náutica correta (calado, UKC, enfiamento, preia-mar/baixa-mar).
 - Um só ficheiro Python enquanto for razoável (< ~700 linhas). Sem
-  frameworks; stdlib + Playwright apenas. `tomllib` (stdlib 3.11+) para regras.
+  frameworks nem dependências externas; stdlib apenas (3.11+: `tomllib`).
 - HTML gerado por f-string no próprio script; sem templates externos.
   Design tokens: tinta `#1B2A38`, água `#DCEBF1`, papel `#F7F5EF`,
   magenta `#B0257C`; estados verde `#1E7A5A` / âmbar `#E2B93B` /
@@ -94,7 +101,6 @@ barra em texto ou código — se falta um dado, marcar `PLACEHOLDER`.
 ## Comandos
 
 ```bash
-pip install -r requirements.txt && playwright install chromium
 python janelas_barra.py                # recolha completa → index.html
 python janelas_barra.py --sem-apl      # teste rápido só com meteo-mar
 python janelas_barra.py --horas 96     # horizonte alargado
@@ -108,9 +114,11 @@ ao parser deve passar por este teste antes de commit.
 
 ## Estado atual e dívidas conhecidas
 
-- [ ] **Scraping APL nunca foi corrido contra o site real** (foi escrito às
-      cegas por restrições de rede no ambiente de desenvolvimento). Primeira
-      execução real pode exigir ajustes nos seletores/colunas.
+- [x] ~~Scraping APL nunca foi corrido contra o site real~~ — resolvido em
+      2026-07-18: o site não usa `<table>` (grelha React) e as páginas de
+      chegadas/partidas exigem pesquisa por datas; substituído o scraping
+      DOM pela API JSON pública (ver "Fontes de dados"), validada em local
+      e em produção.
 - [ ] UKC mistura referenciais ZH/MSL (ver acima) e ignora squat e resposta
       vertical à ondulação — é UKC estático simplificado.
 - [ ] Todos os limiares de swell/vento/período são PLACEHOLDER.

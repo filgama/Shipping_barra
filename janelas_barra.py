@@ -5,8 +5,9 @@ JANELAS DA BARRA — Porto de Lisboa
 ==================================
 Cruza três fontes e gera um painel mobile-first (index.html):
 
-  1. APL (portodelisboa.pt) ........ chegadas (ETA), navios em porto,
-                                     partidas (ETD) — Playwright (JS-rendered)
+  1. APL (portodelisboa.pt) ........ chegadas (ETA) e partidas (ETD) via a
+                                     API JSON pública do portal (Liferay
+                                     /api/jsonws/invoke) — sem browser
   2. Open-Meteo Marine + Forecast .. swell, mar total, período, direção,
                                      nível do mar (maré modelada) e vento —
                                      grátis, sem chave
@@ -39,13 +40,12 @@ from pathlib import Path
 RAIZ = Path(__file__).parent
 SAIDA = RAIZ / "index.html"
 
-PAGINAS_APL = {
-    "chegadas": ("Previsão de Chegadas (ETA)",
-                 "https://www.portodelisboa.pt/previsao-de-chegadas"),
-    "em_porto": ("Navios em Porto",
-                 "https://www.portodelisboa.pt/navios-em-porto"),
-    "partidas": ("Previsão de Partidas (ETD)",
-                 "https://www.portodelisboa.pt/previsao-de-partidas"),
+# API JSON do portal APL (Liferay). Serviços descobertos no JS público das
+# páginas "Previsão de chegadas/partidas"; datas em YYYY-MM-DD.
+API_APL = "https://www.portodelisboa.pt/api/jsonws/invoke"
+SERVICOS_APL = {
+    "chegadas": ("Previsão de Chegadas (ETA)", "/apl.processosweb/get-chegadas"),
+    "partidas": ("Previsão de Partidas (ETD)", "/apl.processosweb/get-partidas"),
 }
 
 ESTADOS = {"verde": 0, "ambar": 1, "vermelho": 2}
@@ -166,96 +166,79 @@ def avaliar_ukc(calado: float, nivel_mar, regras: dict):
 
 
 # ---------------------------------------------------------------------------
-# APL (Playwright) + extração de navios
+# APL (API JSON) + extração de navios
 # ---------------------------------------------------------------------------
-def recolher_apl() -> dict:
-    try:
-        from playwright.sync_api import sync_playwright
-    except ImportError:
-        print("[APL] Playwright em falta: pip install playwright "
-              "&& playwright install chromium")
-        return {}
+def recolher_apl(horas: int) -> dict:
+    """Consulta a API JSON pública da APL para o horizonte pedido.
+    Devolve {chave: {"titulo": ..., "registos": [dict, ...]}}."""
+    from datetime import timedelta
+    hoje = datetime.now().date()
+    fim = hoje + timedelta(days=(horas // 24) + 1)
+    params = {"dataIni": hoje.isoformat(), "dataFim": fim.isoformat()}
     out = {}
-    with sync_playwright() as pw:
-        browser = pw.chromium.launch(headless=True)
-        page = browser.new_page(locale="pt-PT")
-        for chave, (titulo, url) in PAGINAS_APL.items():
-            print(f"[APL] {titulo} … ", end="", flush=True)
-            try:
-                page.goto(url, timeout=45000, wait_until="networkidle")
-                for sel in ("text=Aceitar", "button:has-text('Aceitar')"):
-                    try:
-                        page.locator(sel).first.click(timeout=1500)
-                        break
-                    except Exception:
-                        pass
-                page.wait_for_timeout(2500)
-                tabelas = page.eval_on_selector_all(
-                    "table",
-                    """ts => ts.map(t => [...t.querySelectorAll('tr')].map(tr =>
-                        [...tr.querySelectorAll('th,td')].map(c =>
-                            c.innerText.trim()))
-                        .filter(r => r.some(x => x)))""")
-                melhor = max((t for t in tabelas if len(t) >= 2),
-                             key=len, default=None)
-                if melhor:
-                    out[chave] = {"titulo": titulo, "colunas": melhor[0],
-                                  "linhas": melhor[1:]}
-                    print(f"{len(melhor) - 1} linhas")
-                else:
-                    print("sem tabela (estrutura mudou?)")
-            except Exception as exc:
-                print(f"erro: {exc}")
-        browser.close()
+    for chave, (titulo, servico) in SERVICOS_APL.items():
+        print(f"[APL] {titulo} … ", end="", flush=True)
+        try:
+            corpo = json.dumps({servico: params}).encode()
+            req = urllib.request.Request(
+                API_APL, data=corpo,
+                headers={"User-Agent": "janelas-barra",
+                         "Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=30) as r:
+                registos = json.loads(r.read().decode())
+            if isinstance(registos, list):
+                out[chave] = {"titulo": titulo, "registos": registos}
+                print(f"{len(registos)} registos")
+            else:
+                print(f"resposta inesperada: {str(registos)[:80]}")
+        except Exception as exc:
+            print(f"erro: {exc}")
     return out
 
 
-RE_DATA = re.compile(r"(\d{1,2})[-/](\d{1,2})(?:[-/](\d{2,4}))?\s+(\d{1,2}):(\d{2})")
-RE_NUM = re.compile(r"(\d+[.,]\d+|\d+)")
+RE_DATA_APL = re.compile(r"(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})")
 
 
-def _idx_coluna(colunas: list[str], *palavras) -> int | None:
-    for i, c in enumerate(colunas):
-        cl = c.lower()
-        if any(p in cl for p in palavras):
-            return i
-    return None
+def _momento(texto) -> datetime | None:
+    """'2026-07-21 10:00:00.0' -> datetime, tolerante a variações."""
+    m = RE_DATA_APL.search(str(texto or ""))
+    if not m:
+        return None
+    try:
+        return datetime(*map(int, m.groups()))
+    except ValueError:
+        return None
 
 
-def extrair_navios(apl: dict, ano_defeito: int) -> list[dict]:
-    """Converte as tabelas APL em navios com nome, momento (ETA/ETD),
-    sentido e calado quando detetável. Tolerante a variações de colunas."""
-    navios = []
-    for chave, sentido in (("chegadas", "entrada"), ("partidas", "saída")):
+def extrair_navios(apl: dict) -> list[dict]:
+    """Converte os registos JSON da APL em navios com nome, momento (ETA/ETD),
+    sentido, calado e tipo. Ignora escalas já concretizadas (ATA/ATD).
+    Deduplica por (nome, momento), como faz o próprio portal."""
+    navios, vistos = [], set()
+    por_sentido = (("chegadas", "entrada", "eta", "ata", "caladoMaxEntrada"),
+                   ("partidas", "saída", "etd", "atd", "caladoMaxSaida"))
+    for chave, sentido, c_prev, c_real, c_calado in por_sentido:
         bloco = apl.get(chave)
         if not bloco:
             continue
-        cols = bloco["colunas"]
-        i_nome = _idx_coluna(cols, "navio", "nome", "vessel", "ship")
-        i_hora = _idx_coluna(cols, "eta", "etd", "data", "prev", "hora")
-        i_cal = _idx_coluna(cols, "calado", "draft", "draught")
-        for linha in bloco["linhas"]:
-            def cel(i):
-                return linha[i] if i is not None and i < len(linha) else ""
-            nome = cel(i_nome) or (linha[0] if linha else "?")
-            momento = None
-            m = RE_DATA.search(cel(i_hora)) or RE_DATA.search(" ".join(linha))
-            if m:
-                d, mo, a, h, mi = m.groups()
-                a = int(a) if a else ano_defeito
-                if a < 100:
-                    a += 2000
-                try:
-                    momento = datetime(a, int(mo), int(d), int(h), int(mi))
-                except ValueError:
-                    pass
-            calado = None
-            mc = RE_NUM.search(cel(i_cal))
-            if mc:
-                calado = float(mc.group(1).replace(",", "."))
+        for reg in bloco["registos"]:
+            if str(reg.get(c_real) or "").strip():
+                continue  # já entrou/saiu — não é previsão
+            nome = (reg.get("navio") or reg.get("nv_nome") or "?").strip()
+            momento = _momento(reg.get(c_prev))
+            marca = (nome, sentido, momento)
+            if marca in vistos:
+                continue
+            vistos.add(marca)
+            calado = reg.get(c_calado) or reg.get("nv_caladoMax")
+            try:
+                calado = float(calado) if calado else None
+            except (TypeError, ValueError):
+                calado = None
             navios.append({"nome": nome, "sentido": sentido,
                            "momento": momento, "calado": calado,
-                           "linha": linha})
+                           "tipo": (reg.get("nv_tipoNavio") or "").strip(),
+                           "zona": (reg.get("zona") or "").strip()})
     return navios
 
 
@@ -314,18 +297,22 @@ def gerar_html(previsao, avaliacoes, navios, apl, regras) -> str:
         quando = (n["momento"].strftime("%d/%m %H:%M")
                   if n["momento"] else "—")
         cal = f" · calado {n['calado']:g} m" if n["calado"] else ""
+        tipo = f" · {e(n['tipo'])}" if n.get("tipo") else ""
+        zona = (f"<div class='nmeta'>{e(n['zona'])}</div>"
+                if n.get("zona") else "")
         cartoes.append(f"""
         <div class="navio">
           <span class="farol" style="background:{cor}"></span>
           <div>
             <div class="nnome">{e(n['nome'])}</div>
-            <div class="nmeta">{e(n['sentido'])} · {quando}{cal}</div>
+            <div class="nmeta">{e(n['sentido'])} · {quando}{cal}{tipo}</div>
+            {zona}
             <div class="nmot">{e('; '.join(motivos_n))}</div>
           </div>
         </div>""")
     if not cartoes:
-        cartoes = ["<p class='vazio'>Sem navios extraídos da APL nesta "
-                   "recolha (corre com APL ativa ou verifica o scraping)."]
+        cartoes = ["<p class='vazio'>Sem navios devolvidos pela API da APL "
+                   "nesta recolha (corre com APL ativa ou verifica a API)."]
 
     # --- regras em vigor ----------------------------------------------------
     linhas_regras = "".join(
@@ -422,7 +409,7 @@ Projeto pessoal, código aberto.</footer>
 def main() -> None:
     p = argparse.ArgumentParser(description="Janelas da Barra")
     p.add_argument("--sem-apl", action="store_true",
-                   help="saltar scraping APL (só meteo-mar)")
+                   help="saltar consulta à API APL (só meteo-mar)")
     p.add_argument("--horas", type=int, default=72,
                    help="horizonte de previsão em horas (defeito 72)")
     args = p.parse_args()
@@ -436,10 +423,9 @@ def main() -> None:
         sys.exit(1)
     avaliacoes = [avaliar_hora(h, regras) for h in previsao]
 
-    apl = {} if args.sem_apl else recolher_apl()
-    ano = datetime.now().year
-    navios = extrair_navios(apl, ano)
-    print(f"[navios] {len(navios)} extraídos das tabelas APL")
+    apl = {} if args.sem_apl else recolher_apl(args.horas)
+    navios = extrair_navios(apl)
+    print(f"[navios] {len(navios)} extraídos da API APL")
 
     SAIDA.write_text(gerar_html(previsao, avaliacoes, navios, apl, regras),
                      encoding="utf-8")
