@@ -53,7 +53,7 @@ dir_min = 190
 dir_max = 300
 ambar = 2.5
 vermelho = 3.5
-fonte = "PLACEHOLDER — validar com piloto"
+fonte = "PLACEHOLDER — to be validated with pilot"
 
 [[regra]]
 id = "periodo_longo"
@@ -61,7 +61,7 @@ descricao = "Long swell period (heavy groundswell)"
 parametro = "swell_periodo"
 ambar = 12.0
 vermelho = 16.0
-fonte = "PLACEHOLDER — validar com piloto"
+fonte = "PLACEHOLDER — to be validated with pilot"
 
 [[regra]]
 id = "mar_total"
@@ -69,7 +69,7 @@ descricao = "Total significant wave height (combined sea)"
 parametro = "onda_altura"
 ambar = 3.0
 vermelho = 4.5
-fonte = "PLACEHOLDER — validar com piloto"
+fonte = "PLACEHOLDER — to be validated with pilot"
 
 [[regra]]
 id = "vento"
@@ -77,7 +77,7 @@ descricao = "Mean wind at 10 m"
 parametro = "vento_kn"
 ambar = 25.0
 vermelho = 35.0
-fonte = "PLACEHOLDER — validar com piloto"
+fonte = "PLACEHOLDER — to be validated with pilot"
 
 [[regra]]
 id = "rajada"
@@ -85,7 +85,7 @@ descricao = "Wind gusts"
 parametro = "rajada_kn"
 ambar = 35.0
 vermelho = 45.0
-fonte = "PLACEHOLDER — validar com piloto"
+fonte = "PLACEHOLDER — to be validated with pilot"
 
 [[regra]]
 id = "visibilidade"
@@ -95,7 +95,7 @@ parametro = "visibilidade_m"
 sentido = "abaixo"
 ambar = 3704.0    # ~2 milhas náuticas
 vermelho = 1852.0 # ~1 milha náutica
-fonte = "PLACEHOLDER — doc de análise cita 1 MN como limiar típico de suspensão de manobras por nevoeiro; artigo do edital da Capitania por confirmar"
+fonte = "PLACEHOLDER — analysis doc cites 1 NM as the typical threshold for suspending manoeuvres in fog; specific Capitania (Harbour Master) notice article to be confirmed"
 
 [[regra]]
 id = "corrente"
@@ -107,7 +107,7 @@ vermelho = 3.0
 # atracação, mas isso é um critério por berço/manobra que esta app não tem
 # dados para avaliar; este limiar é para a corrente geral na aproximação à
 # barra (mais permissivo, gate de primeiro nível).
-fonte = "PLACEHOLDER — validar com piloto"
+fonte = "PLACEHOLDER — to be validated with pilot"
 
 [[regra]]
 id = "embarque_piloto"
@@ -115,7 +115,7 @@ descricao = "Pilot boarding (Hs at the boarding area)"
 parametro = "onda_altura"
 ambar = 2.5
 vermelho = 3.0
-fonte = "PLACEHOLDER — doc de análise secção 5.2: acima de ~2.5-3 m de Hs a lancha dos pilotos tipicamente não opera; gate de primeiro nível, por confirmar"
+fonte = "PLACEHOLDER — analysis doc section 5.2: above ~2.5-3 m Hs the pilot boat typically does not operate; first-level gate, to be confirmed"
 
 # --- Regras por tipo de navio -------------------------------------------------
 # `tipos`: lista de substrings (case-insensitive) procuradas no campo `tipo`

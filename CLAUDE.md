@@ -133,8 +133,13 @@ barra em texto ou código — se falta um dado, marcar `PLACEHOLDER`.
   europeu.** Os identificadores internos (`verde`/`ambar`/`vermelho`,
   `PM`/`BM`, `entrada`/`saída`, classes CSS) ficam em PT — a tradução
   acontece só na apresentação (`ESTADO_ROTULO`, `ESTOFA_ROTULO`,
-  `SENTIDO_ROTULO`). Os campos `fonte` de regras.toml continuam em PT
-  (proveniência interna; o rodapé do site avisa disso).
+  `SENTIDO_ROTULO`). Os campos `fonte` de `[[regra]]` em `regras.toml`
+  (mostrados na tabela "Rules in force" de cada página de porto) estão em
+  **inglês** — são conteúdo visível do site, tal como `descricao`. Os
+  restantes `fonte` do ficheiro (`[ukc]`, `[estofa]`, `[dimensoes]`,
+  `[[regra_navio]]`, `[notas_regulamentares]`) nunca são renderizados em
+  HTML nenhum e continuam em português europeu (proveniência interna, como
+  o resto do código/docs).
 - Um só ficheiro Python enquanto for razoável — o limite de ~1000 linhas é
   indicativo, não rígido; ultrapassar é tolerável se o ficheiro continuar
   coerente (em 2026-07-19, ~1600 linhas após a expansão Europa; os blocos

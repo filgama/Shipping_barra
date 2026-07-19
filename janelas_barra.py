@@ -1526,7 +1526,6 @@ any specific port.</div>
 
 <footer>All times are local port time. Sea level: Open-Meteo model (not an
 official tide table).{' APL data © Administração do Porto de Lisboa.' if tem_apl else ''}
-Threshold provenance notes ("source" column) are kept in Portuguese.
 Personal project, open source.</footer>
 {JS_PAINEL}
 </body></html>"""
@@ -1663,7 +1662,6 @@ any specific port.</div>
 </main>
 <footer>Each port links to its detailed 72-hour panel (local port time).
 Sea level: Open-Meteo model (not an official tide table).
-Threshold provenance notes are kept in Portuguese.
 Personal project, open source.</footer>
 <script>
 (function () {{
