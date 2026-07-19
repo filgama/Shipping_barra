@@ -109,10 +109,26 @@ def carregar_portos() -> list[dict]:
 # ---------------------------------------------------------------------------
 # Meteo-mar (Open-Meteo — sem chave)
 # ---------------------------------------------------------------------------
+def _com_tentativas(fn, tentativas=3, pausa_base=1.5):
+    """Chama fn() com retries e pausa crescente — o CI corre dezenas de
+    pedidos seguidos de um IP partilhado e o Open-Meteo por vezes recusa
+    ou atrasa (throttling/erro transitório); re-levanta a última exceção
+    se todas as tentativas falharem."""
+    for tentativa in range(1, tentativas + 1):
+        try:
+            return fn()
+        except Exception:
+            if tentativa == tentativas:
+                raise
+            time.sleep(pausa_base * tentativa)
+
+
 def _get_json(url: str) -> dict:
-    req = urllib.request.Request(url, headers={"User-Agent": "janelas-barra"})
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return json.loads(r.read().decode())
+    def _pedir():
+        req = urllib.request.Request(url, headers={"User-Agent": "janelas-barra"})
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return json.loads(r.read().decode())
+    return _com_tentativas(_pedir)
 
 
 def recolher_meteomar(porto: dict, horas: int) -> list[dict]:
@@ -1519,15 +1535,22 @@ def gerar_html_landing(resultados, regras) -> str:
             else:
                 estado_txt = "no green window in 72 h"
             filtro = f"{porto['nome']} {nome_pais}".lower()
-            cartoes.append(
-                f"<a class='cartao' href='ports/{porto['slug']}.html' "
-                f"data-filtro=\"{e(filtro)}\">"
+            corpo = (
                 f"<span class='farol' style='background:{cor}' "
                 f"aria-hidden='true'></span>"
                 f"<span class='cartao-corpo'><span class='cartao-nome'>"
                 f"{porto['bandeira']} {e(porto['nome'])}</span>"
                 f"<span class='cartao-estado'>{e(estado_txt)}</span>"
-                f"</span></a>")
+                f"</span>")
+            if r["erro"] is not None:
+                # sem página gerada nesta corrida — não linkar (evita 404)
+                cartoes.append(
+                    f"<div class='cartao cartao-sem-dados' "
+                    f"data-filtro=\"{e(filtro)}\">{corpo}</div>")
+            else:
+                cartoes.append(
+                    f"<a class='cartao' href='ports/{porto['slug']}.html' "
+                    f"data-filtro=\"{e(filtro)}\">{corpo}</a>")
         seccoes.append(
             f"<section class='pais' data-pais=\"{e(nome_pais.lower())}\">"
             f"<h2>{bandeira_pais} {e(nome_pais)}</h2>"
@@ -1571,6 +1594,7 @@ def gerar_html_landing(resultados, regras) -> str:
            text-decoration:none; }}
  .cartao:hover, .cartao:focus-visible {{ border-color:var(--tinta); }}
  .cartao.hide {{ display:none; }}
+ .cartao-sem-dados {{ opacity:.65; }}
  .farol {{ flex:0 0 12px; height:12px; border-radius:50%; margin-top:4px; }}
  .cartao-corpo {{ display:flex; flex-direction:column; min-width:0; }}
  .cartao-nome {{ font-weight:600; font-size:14px; }}

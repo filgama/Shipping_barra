@@ -426,6 +426,9 @@ def teste_html_landing():
     assert "green window: now" in out
     assert "no data this run" in out and "Netherlands" in out
     assert "next green window: Sat 14:00" in out and "Germany" in out
+    # porto com erro nesta corrida: sem página gerada, não pode ligar (404)
+    assert "href='ports/rotterdam.html'" not in out
+    assert "cartao-sem-dados" in out
     assert "NOT an operational tool" in out            # banner obrigatório
     assert 'id="filtro"' in out                        # filtro client-side
     # países ordenados por nome EN: Germany < Netherlands < Portugal
@@ -440,6 +443,28 @@ def teste_dark_mode():
     assert out.count('name="theme-color"') == 2
 
 
+def teste_com_tentativas():
+    contador = {"n": 0}
+
+    def falha_duas_vezes():
+        contador["n"] += 1
+        if contador["n"] < 3:
+            raise ValueError("transitório")
+        return "ok"
+
+    assert jb._com_tentativas(falha_duas_vezes, tentativas=3, pausa_base=0) == "ok"
+    assert contador["n"] == 3
+
+    def falha_sempre():
+        raise ValueError("persistente")
+
+    try:
+        jb._com_tentativas(falha_sempre, tentativas=2, pausa_base=0)
+        assert False, "devia ter levantado ValueError"
+    except ValueError:
+        pass
+
+
 TESTES = [teste_avaliar_hora_basico, teste_setor_circular, teste_ukc,
           teste_ukc_margem_ondulacao, teste_sentido_abaixo,
           teste_avaliar_navio_tipo, teste_detetar_estofas,
@@ -451,7 +476,7 @@ TESTES = [teste_avaliar_hora_basico, teste_setor_circular, teste_ukc,
           teste_ws_parse_frame, teste_haversine, teste_agregar_ais,
           teste_html_ais_ativo, teste_html_ais_inativo, teste_fusao_apl_ais,
           teste_carregar_portos, teste_html_porto_sem_apl,
-          teste_html_landing, teste_dark_mode]
+          teste_html_landing, teste_dark_mode, teste_com_tentativas]
 
 
 def main():
