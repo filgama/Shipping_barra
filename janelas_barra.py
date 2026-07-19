@@ -1137,8 +1137,8 @@ def gerar_html_porto(porto, previsao, avaliacoes, navios, apl, regras,
           </div>
         </div>""")
     if not cartoes:
-        cartoes = ["<p class='vazio'>No vessels returned by the APL API "
-                   "this run (run with APL enabled or check the API)."]
+        cartoes = ["<p class='vazio'>No vessels in the APL data for this "
+                   "window.</p>"]
 
     # --- chips de filtro por estado (JS liga-os aos data-estado acima) -----
     chips_filtro_html = ""
@@ -1479,7 +1479,7 @@ def gerar_html_porto(porto, previsao, avaliacoes, navios, apl, regras,
  <div class="sub"><a href="../index.html">← All ports</a></div>
  <h1>{e(nome_pagina)}</h1>
  <div class="sub">Updated at {agora} · Open-Meteo Marine{' + APL' if tem_apl else ''} ·
- thresholds in regras.toml</div>
+ editable thresholds</div>
 </header>
 <div class="aviso" role="note">⚠ Informal planning aid — NOT an operational tool.
 It does not replace port authorities, VTS, pilotage, official tide tables or
@@ -1649,7 +1649,7 @@ def gerar_html_landing(resultados, regras) -> str:
 <header>
  <h1>Port Approach Windows — Europe</h1>
  <div class="sub">Updated at {agora_utc} UTC · Open-Meteo Marine ·
- thresholds in regras.toml</div>
+ editable thresholds</div>
 </header>
 <div class="aviso" role="note">⚠ Informal planning aid — NOT an operational tool.
 It does not replace port authorities, VTS, pilotage, official tide tables or
