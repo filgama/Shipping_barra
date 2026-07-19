@@ -1,4 +1,4 @@
-name: Atualizar Janelas da Barra
+name: Atualizar Port Approach Windows
 
 on:
   schedule:
@@ -34,7 +34,7 @@ jobs:
         run: python janelas_barra.py --horas 72
 
       - name: Preparar artefacto Pages
-        run: mkdir -p _site && cp index.html _site/
+        run: mkdir -p _site && cp index.html _site/ && cp -r ports _site/
 
       - uses: actions/upload-pages-artifact@v3
         with:

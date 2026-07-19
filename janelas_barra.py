@@ -1626,44 +1626,100 @@ Personal project, open source.</footer>
 
 # ---------------------------------------------------------------------------
 def main() -> None:
-    p = argparse.ArgumentParser(description="Janelas da Barra")
+    p = argparse.ArgumentParser(description="Port Approach Windows — Europe")
     p.add_argument("--sem-apl", action="store_true",
                    help="saltar consulta à API APL (só meteo-mar)")
     p.add_argument("--horas", type=int, default=72,
                    help="horizonte de previsão em horas (defeito 72)")
     p.add_argument("--sem-ais", action="store_true",
                    help="saltar a recolha AIS (aisstream.io)")
+    p.add_argument("--porto", action="append", metavar="SLUG",
+                   help="gerar só este(s) porto(s) do catálogo (repetível); "
+                        "a landing cobre na mesma só os portos gerados")
     args = p.parse_args()
 
     regras = carregar_regras()
-    print("[meteo] Open-Meteo Marine + vento …")
-    try:
-        previsao = recolher_meteomar(regras, args.horas)
-    except Exception as exc:
-        print(f"[meteo] ERRO: {exc}")
-        sys.exit(1)
-    avaliacoes = [avaliar_hora(h, regras) for h in previsao]
+    portos = carregar_portos()
+    if args.porto:
+        conhecidos = {pt["slug"] for pt in portos}
+        for slug in args.porto:
+            if slug not in conhecidos:
+                print(f"[ERRO] slug desconhecido em portos.toml: {slug}")
+                sys.exit(1)
+        portos = [pt for pt in portos if pt["slug"] in set(args.porto)]
 
-    apl = {} if args.sem_apl else recolher_apl(args.horas)
-    navios = extrair_navios(apl)
-    print(f"[navios] {len(navios)} extraídos da API APL")
-
-    ais = None
     chave_ais = os.environ.get("AISSTREAM_KEY")
-    if chave_ais and not args.sem_ais:
-        print("[AIS] a ligar a aisstream.io (~60 s de escuta) …")
-        ais = recolher_ais(chave_ais, regras)
-        if ais["erro"]:
-            print(f"[AIS] erro: {ais['erro']}")
-        else:
-            print(f"[AIS] {len(ais['navios'])} navios no estuário")
-    elif not chave_ais:
-        print("[AIS] sem AISSTREAM_KEY — secção AIS inativa")
+    if not chave_ais:
+        print("[AIS] sem AISSTREAM_KEY — secções AIS inativas")
 
-    SAIDA.write_text(
-        gerar_html(previsao, avaliacoes, navios, apl, regras, ais=ais),
-        encoding="utf-8")
-    print(f"[OK] Painel: {SAIDA}")
+    (RAIZ / "ports").mkdir(exist_ok=True)
+    agora_dt = datetime.now()
+    resultados = []
+    for porto in portos:
+        slug = porto["slug"]
+        try:
+            previsao = recolher_meteomar(porto, args.horas)
+            avaliacoes = [avaliar_hora(h, regras) for h in previsao]
+
+            apl, navios = {}, []
+            if porto.get("apl") and not args.sem_apl:
+                apl = recolher_apl(args.horas)
+                navios = extrair_navios(apl)
+                print(f"[{slug}] {len(navios)} navios da API APL")
+
+            ais = None
+            if porto.get("ais_bbox") and chave_ais and not args.sem_ais:
+                print(f"[{slug}] AIS: a ligar a aisstream.io (~60 s) …")
+                ais = recolher_ais(chave_ais, porto)
+                if ais["erro"]:
+                    print(f"[{slug}] AIS erro: {ais['erro']}")
+                else:
+                    print(f"[{slug}] AIS: {len(ais['navios'])} navios")
+
+            (RAIZ / "ports" / f"{slug}.html").write_text(
+                gerar_html_porto(porto, previsao, avaliacoes, navios, apl,
+                                 regras, ais=ais),
+                encoding="utf-8")
+
+            # estado da hora corrente + próxima janela verde, para a landing.
+            # NOTA: as horas da previsão estão na hora LOCAL do porto
+            # (timezone=auto); usar a hora local da máquina como aproximação
+            # da "hora corrente" é aceitável dentro da Europa (desvio máximo
+            # de ~2-3 h nos extremos do fuso) — o cartão é um resumo, o
+            # detalhe autoritativo está na página do porto.
+            agora_iso = agora_dt.strftime("%Y-%m-%dT%H:00")
+            idx = next((i for i, h in enumerate(previsao)
+                        if h["tempo"] >= agora_iso), 0)
+            estado_atual = avaliacoes[idx][0]
+            proxima_verde = None
+            if estado_atual == 0:
+                proxima_verde = "now"
+            else:
+                prox = next((h for h, a in zip(previsao[idx:],
+                                               avaliacoes[idx:])
+                             if a[0] == 0), None)
+                if prox:
+                    proxima_verde = _fmt_dia_hora(prox["tempo"])
+            resultados.append({"porto": porto, "estado_atual": estado_atual,
+                               "proxima_verde": proxima_verde, "erro": None})
+            print(f"[{slug}] OK — estado atual "
+                  f"{ESTADO_NOME[estado_atual]}")
+        except Exception as exc:
+            # degrada SÓ este porto: cartão "no data" na landing, corrida
+            # continua para os restantes
+            print(f"[{slug}] ERRO: {exc}")
+            resultados.append({"porto": porto, "estado_atual": None,
+                               "proxima_verde": None, "erro": str(exc)})
+        time.sleep(0.3)  # cortesia com o Open-Meteo
+
+    if not any(r["erro"] is None for r in resultados):
+        print("[ERRO] nenhum porto gerado com sucesso — landing não escrita")
+        sys.exit(1)
+
+    SAIDA.write_text(gerar_html_landing(resultados, regras),
+                     encoding="utf-8")
+    ok = sum(1 for r in resultados if r["erro"] is None)
+    print(f"[OK] Landing: {SAIDA} ({ok}/{len(resultados)} portos)")
 
 
 if __name__ == "__main__":

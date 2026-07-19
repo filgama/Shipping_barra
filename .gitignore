@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+
+# páginas geradas por porto (o CI regenera a cada corrida)
+ports/

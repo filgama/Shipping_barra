@@ -1,27 +1,40 @@
-# CLAUDE.md — Janelas da Barra
+# CLAUDE.md — Port Approach Windows (Europa)
 
 Contexto de projeto para assistentes de IA (Claude Code ou similar) e para
 humanos. Lê isto antes de tocar no código.
 
 ## O que é isto
 
-Planeador informal de **janelas de manobra na barra do Porto de Lisboa**.
-Cruza três fontes e produz um painel estático mobile-first (`index.html`):
+Planeador informal de **janelas de aproximação/manobra em ~50 portos
+europeus** (expansão 2026-07-19 do projeto original "Janelas da Barra",
+que cobria só a barra do Porto de Lisboa — ver
+`docs/2026-07-19-expansao-europa-design.md`). Site estático mobile-first
+**em inglês**: uma landing page (`index.html`) com o estado de cada porto e
+uma página de detalhe por porto (`ports/<slug>.html`). Fontes:
 
-1. **APL** (portodelisboa.pt) — chegadas (ETA), navios em porto, partidas (ETD)
+1. **`portos.toml`** — catálogo dos portos (slug, nome, país, coordenada de
+   aproximação; opcionais: `apl`, `ais_bbox`, `profundidade_zh`)
 2. **Open-Meteo** (Marine + Forecast) — swell, mar total, período, direção,
-   nível do mar modelado e vento, na coordenada da aproximação à Barra Sul
+   nível do mar modelado e vento, na coordenada de aproximação de CADA
+   porto (`timezone=auto` → horas na hora local do porto)
 3. **`regras.toml`** — motor de regras com limiares editáveis que classifica
    cada hora como **verde / âmbar / vermelho** e avalia UKC por navio
+4. **APL** (portodelisboa.pt) — chegadas (ETA), navios em porto, partidas
+   (ETD) — **só para Lisboa** (`apl = true` no catálogo); os outros portos
+   não têm fonte equivalente de escalas
 
 Publicação: GitHub Actions corre o script a cada 30 min e publica em
-GitHub Pages. O utilizador final abre um link no telemóvel.
+GitHub Pages (`index.html` + `ports/`). O utilizador final abre um link no
+telemóvel.
 
 ## O que isto NÃO é (não-objetivos)
 
-- **Não é ferramenta operacional.** Não substitui JUP, VTS-Lisboa, Capitania,
-  tabelas do Instituto Hidrográfico nem o juízo do piloto. O banner de aviso
-  no HTML é obrigatório — nunca o remover nem suavizar.
+- **Não é ferramenta operacional.** Em nenhum porto substitui a autoridade
+  portuária, o VTS, a pilotagem, as tabelas de maré oficiais nem os
+  regulamentos locais (em Lisboa: JUP, VTS-Lisboa, Capitania, IH). O banner
+  de aviso no HTML é obrigatório em TODAS as páginas — nunca o remover nem
+  suavizar; desde a expansão Europa diz também que os limiares são
+  genéricos e não validados por porto.
 - Não é um clone do MarineTraffic. O valor está no **cruzamento** de fontes e
   nas **regras codificadas**, não no tracking.
 - AIS em direto (secção "No estuário agora") é um snapshot informativo de
@@ -34,11 +47,15 @@ GitHub Pages. O utilizador final abre um link no telemóvel.
 janelas-barra/
 ├── janelas_barra.py          # script único: recolha + regras + HTML
 ├── teste_offline.py          # teste sem rede: fixtures + assert (correr antes de commit)
-├── regras.toml               # ÚNICO sítio onde vivem limiares numéricos
-├── index.html                # gerado; não editar à mão
+├── regras.toml               # ÚNICO sítio onde vivem limiares numéricos de decisão
+├── portos.toml               # catálogo de portos (coordenadas, apl/ais_bbox/profundidade)
+├── index.html                # landing gerada; não editar à mão
+├── ports/                    # páginas por porto geradas; em .gitignore (CI regenera)
 ├── requirements.txt
 ├── docs/                     # documentos de apoio (análise, specs/plans de features)
-│   └── analise_manobrabilidade_lisboa_v2.md
+│   ├── analise_manobrabilidade_lisboa_v2.md
+│   ├── 2026-07-19-expansao-europa-design.md
+│   └── 2026-07-19-expansao-europa-plan.md
 ├── .github/workflows/atualizar.yml
 ├── README.md                 # setup para humanos
 └── CLAUDE.md                 # este ficheiro
@@ -46,9 +63,11 @@ janelas-barra/
 
 Fluxo em `janelas_barra.py` (por ordem no ficheiro, funções auxiliares
 privadas `_get_json`/`_momento`/`cardeal_seta` omitidas):
-`carregar_regras` → `recolher_meteomar` → `avaliar_hora`/`avaliar_ukc`
-→ `recolher_apl` → `extrair_navios` → `filtrar_em_porto` →
-`gerar_svg_mare` → `gerar_html` → `main`.
+`carregar_regras`/`carregar_portos` → por porto: `recolher_meteomar(porto)`
+→ `avaliar_hora`/`avaliar_ukc` → (se `apl`) `recolher_apl` →
+`extrair_navios` → `filtrar_em_porto` → (se `ais_bbox`) `recolher_ais` →
+`gerar_svg_mare` → `gerar_html_porto` → `ports/<slug>.html`; no fim,
+`gerar_html_landing` → `index.html`. Tudo em `main`.
 
 ## A regra de ouro deste projeto
 
@@ -89,8 +108,10 @@ barra em texto ou código — se falta um dado, marcar `PLACEHOLDER`.
   de UKC soma `canal.profundidade_zh + nivel_mar`, o que mistura referenciais
   (ZH vs MSL). É uma aproximação assumida; está no rodapé do painel e é o
   item nº 1 do Roadmap.
-- **Fuso horário**: pedimos `Europe/Lisbon` à API; as ETAs da APL são hora
-  local. Manter tudo em hora local, sem conversões.
+- **Fuso horário**: pedimos `timezone=auto` ao Open-Meteo, por porto — cada
+  página mostra a hora LOCAL do porto (o rodapé di-lo); as ETAs da APL são
+  hora de Lisboa, que coincide com a hora local dessa página. A landing usa
+  UTC explícito no "Updated at". Sem conversões manuais.
 - **aisstream.io** (AIS em direto, secção "No estuário agora"): WebSocket
   (`wss://stream.aisstream.io/v0/stream`), grátis mediante registo — chave em
   `AISSTREAM_KEY` (env local / secret GitHub). Sem dependências externas: o
@@ -104,13 +125,21 @@ barra em texto ou código — se falta um dado, marcar `PLACEHOLDER`.
 
 ## Convenções
 
-- Português europeu em código, comentários, UI e commits. Terminologia
-  náutica correta (calado, UKC, enfiamento, preia-mar/baixa-mar).
+- **UI em inglês** (desde a expansão Europa, por decisão do utilizador):
+  todas as strings visíveis nas páginas geradas, incluindo os campos
+  `descricao` de `regras.toml` (são mostrados tal-e-qual). Terminologia
+  náutica inglesa correta (draught, UKC, HW/LW, slack water, NM).
+- **Código, comentários, identificadores, commits e docs em português
+  europeu.** Os identificadores internos (`verde`/`ambar`/`vermelho`,
+  `PM`/`BM`, `entrada`/`saída`, classes CSS) ficam em PT — a tradução
+  acontece só na apresentação (`ESTADO_ROTULO`, `ESTOFA_ROTULO`,
+  `SENTIDO_ROTULO`). Os campos `fonte` de regras.toml continuam em PT
+  (proveniência interna; o rodapé do site avisa disso).
 - Um só ficheiro Python enquanto for razoável — o limite de ~1000 linhas é
   indicativo, não rígido; ultrapassar é tolerável se o ficheiro continuar
-  coerente (em 2026-07-19, ~1460 linhas, após o pacote de UX da timeline/
-  navios/maré e o cliente WSS do AIS — este último é o maior bloco isolado,
-  ~250 linhas, candidato natural a módulo próprio se o ficheiro crescer mais).
+  coerente (em 2026-07-19, ~1600 linhas após a expansão Europa; os blocos
+  candidatos a módulo próprio, se crescer mais, são o cliente WSS do AIS
+  (~250 linhas) e a geração de HTML (`gerar_html_porto`+`gerar_html_landing`)).
   Sem frameworks nem dependências externas; stdlib apenas (3.11+: `tomllib`).
 - HTML gerado por f-string no próprio script; sem templates externos.
   Design tokens: tinta `#1B2A38`, água `#DCEBF1`, papel `#F7F5EF`,
@@ -122,8 +151,9 @@ barra em texto ou código — se falta um dado, marcar `PLACEHOLDER`.
 ## Comandos
 
 ```bash
-python janelas_barra.py                # recolha completa → index.html
-python janelas_barra.py --sem-apl      # teste rápido só com meteo-mar
+python janelas_barra.py                # todos os portos → ports/*.html + index.html
+python janelas_barra.py --porto lisboa --porto rotterdam   # só estes (teste rápido)
+python janelas_barra.py --sem-apl      # saltar API APL (Lisboa fica só meteo-mar)
 python janelas_barra.py --sem-ais      # saltar snapshot AIS (aisstream.io)
 python janelas_barra.py --horas 96     # horizonte alargado
 python -m py_compile janelas_barra.py  # sanity check
@@ -156,25 +186,50 @@ antes de publicar.
       de ondulação no UKC; deteção de janelas de estofa (PM/BM); rótulos
       GO/GO condicional/NO-GO nos textos de detalhe. Todos os novos
       limiares são PLACEHOLDER (por validar com piloto).
+- [x] Expansão Europa (2026-07-19): catálogo `portos.toml` (~50 portos),
+      geração multi-porto (`ports/<slug>.html` + landing), UI em inglês.
+      Lisboa mantém em exclusivo APL + AIS. Ver
+      `docs/2026-07-19-expansao-europa-design.md` e o plano irmão.
 - [ ] UKC mistura referenciais ZH/MSL (ver acima) e ignora squat e resposta
       vertical à ondulação — é UKC estático simplificado (agora com margem
       de ondulação aproximada, também PLACEHOLDER).
 - [ ] Todos os limiares de swell/vento/período/visibilidade/corrente são
-      PLACEHOLDER.
-- [ ] `canal.profundidade_zh = 15.0` é ilustrativo — confirmar com carta IH.
+      PLACEHOLDER — e desde a expansão são GLOBAIS: os mesmos números para
+      Gdansk e para Algeciras, sem calibração por porto (o banner do site
+      avisa). Personalização por porto é o caminho natural (overrides no
+      catálogo).
+- [ ] `profundidade_zh = 15.0` de Lisboa (portos.toml) é ilustrativo —
+      confirmar com carta IH; os outros portos nem têm o campo (UKC não
+      avaliado fora de Lisboa).
+- [ ] Coordenadas de aproximação dos portos novos são aproximadas (~±0,1°),
+      escolhidas para o ponto de grelha meteo — refinar com o tempo.
 - [ ] Estofa derivada de PM/BM do nível modelado (Open-Meteo), não da
       estofa real da corrente — desfasamento local não calibrado.
+- [ ] O estado "atual" dos cartões da landing usa a hora local da máquina
+      do CI como aproximação da hora local de cada porto (desvio máximo
+      ~2-3 h nos extremos da Europa) — detalhe autoritativo na página do
+      porto.
+- [ ] As `[notas_regulamentares]` são específicas de Lisboa mas aparecem em
+      todos os portos (assinaladas como tal) — notas por porto são trabalho
+      futuro.
 
 ## Roadmap (por ordem de valor)
 
-1. Substituir nível do mar Open-Meteo por previsão de marés do IH
-   (ou calibrar o offset MSL↔ZH para Cascais/Lisboa). Nota: já existe uma
-   curva de maré em SVG no painel (`gerar_svg_mare`, alinhada à timeline
-   com PM/BM anotadas), mas continua calculada a partir do nível de mar
-   modelado pelo Open-Meteo — este item mantém-se por resolver.
-2. Sessão com o piloto: validar/preencher `regras.toml` e a coordenada
-   `[local]`; registar cada decisão no campo `fonte`.
-3. Reintegrar snapshot AIS (aisstream.io, chave em secret `AISSTREAM_KEY`)
-   para posições em direto no painel.
-4. Alertas (e-mail/Telegram) quando um navio da lista cai em janela vermelha.
-5. Regras por classe de navio (LOA/calado/tipo) em vez de globais.
+1. Limiares/overrides por porto no catálogo (`[porto.regras]`) — hoje as
+   regras são globais para toda a Europa, o que é a maior fraqueza do
+   painel multi-porto.
+2. Substituir nível do mar Open-Meteo por previsões de maré oficiais
+   (IH para PT; equivalentes por país) ou calibrar offsets MSL↔datum.
+   A curva SVG existe mas continua alimentada pelo modelo.
+3. Sessão com piloto(s): validar/preencher `regras.toml` (e, por porto,
+   as futuras overrides); registar cada decisão no campo `fonte`.
+4. `profundidade_zh` e `ais_bbox` para mais portos do catálogo (hoje só
+   Lisboa tem UKC e AIS).
+5. Alertas (e-mail/Telegram) quando um navio da lista de Lisboa cai em
+   janela vermelha.
+6. Regras por classe de navio (LOA/calado/tipo) em vez de globais.
+7. Fontes de escalas (ETA/ETD) para outros portos, se existirem APIs
+   públicas equivalentes à da APL.
+
+Concluído entretanto: ~~reintegrar snapshot AIS~~ (2026-07-19, aisstream.io,
+secret `AISSTREAM_KEY`).
