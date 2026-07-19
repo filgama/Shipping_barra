@@ -69,6 +69,9 @@
  .navio-corpo { min-width:0; flex:1; }
  .nnome-linha { display:flex; flex-wrap:wrap; align-items:baseline; gap:6px; }
  .nnome { font-weight:600; font-size:15px; }
+ a.nnome { color:inherit; text-decoration:underline;
+           text-decoration-color:#8FA6B5; text-underline-offset:2px; }
+ a.nnome:hover, a.nnome:focus-visible { text-decoration-color:currentColor; }
  .nestado { font-size:11px; font-weight:700; color:#5C6E7C; }
  .nmeta { font-size:12px; color:#5C6E7C; }
  .chips { margin-top:4px; display:flex; flex-wrap:wrap; gap:4px; }
@@ -106,7 +109,7 @@
 <body>
 <header>
  <h1>Janelas da Barra — Lisboa</h1>
- <div class="sub">Atualizado: 19/07/2026 11:12 · APL + Open-Meteo Marine ·
+ <div class="sub">Atualizado: 19/07/2026 11:26 · APL + Open-Meteo Marine ·
  limiares em regras.toml</div>
 </header>
 <div class="aviso" role="note">⚠ Ferramenta informativa. Não substitui JUP,
@@ -140,7 +143,9 @@ são PLACEHOLDERS por validar.</div>
         <div class="navio">
           <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
           <div class="navio-corpo">
-            <div class="nnome-linha"><span class="nnome">WOOYANG CLES</span>
+            <div class="nnome-linha"><a class="nnome"
+            href="https://www.marinetraffic.com/pt/ais/details/ships/imo:9638147"
+            target="_blank" rel="noopener">WOOYANG CLES</a>
             <span class="nestado">GO</span></div>
             <div class="nmeta">entrada · 19/07 01:00</div>
             <div class='chips'><span class='chip'>Carga Geral</span><span class='chip'>calado 7.96 m</span><span class='chip'>TERM GRANEIS SOVENA/PALENÇA</span></div>
@@ -150,7 +155,9 @@ são PLACEHOLDERS por validar.</div>
         <div class="navio">
           <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
           <div class="navio-corpo">
-            <div class="nnome-linha"><span class="nnome">WEC CORNEILLE</span>
+            <div class="nnome-linha"><a class="nnome"
+            href="https://www.marinetraffic.com/pt/ais/details/ships/imo:9326940"
+            target="_blank" rel="noopener">WEC CORNEILLE</a>
             <span class="nestado">GO</span></div>
             <div class="nmeta">entrada · 19/07 16:00</div>
             <div class='chips'><span class='chip'>Porta-contentores</span><span class='chip'>calado 8 m</span><span class='chip'>FUNDEADOURO QUADRO CENTRAL</span></div>
@@ -160,7 +167,9 @@ são PLACEHOLDERS por validar.</div>
         <div class="navio">
           <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
           <div class="navio-corpo">
-            <div class="nnome-linha"><span class="nnome">HANSA ROTENBURG</span>
+            <div class="nnome-linha"><a class="nnome"
+            href="https://www.marinetraffic.com/pt/ais/details/ships/imo:9401673"
+            target="_blank" rel="noopener">HANSA ROTENBURG</a>
             <span class="nestado">GO</span></div>
             <div class="nmeta">entrada · 19/07 17:00</div>
             <div class='chips'><span class='chip'>Porta-Contentores</span><span class='chip'>calado 8 m</span><span class='chip'>TERM CONTENT ALCANTARA /  LISCONT</span></div>
@@ -170,7 +179,9 @@ são PLACEHOLDERS por validar.</div>
         <div class="navio">
           <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
           <div class="navio-corpo">
-            <div class="nnome-linha"><span class="nnome">BOKA SUB C</span>
+            <div class="nnome-linha"><a class="nnome"
+            href="https://www.marinetraffic.com/pt/ais/details/ships/imo:9275153"
+            target="_blank" rel="noopener">BOKA SUB C</a>
             <span class="nestado">GO</span></div>
             <div class="nmeta">entrada · 19/07 18:00</div>
             <div class='chips'><span class='chip'>Navio de providencia de bens</span><span class='chip'>calado 7 m</span><span class='chip'>EST.ASSIST.NAVAL PORTO LISBOA</span></div>
@@ -180,7 +191,9 @@ são PLACEHOLDERS por validar.</div>
         <div class="navio">
           <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
           <div class="navio-corpo">
-            <div class="nnome-linha"><span class="nnome">MONTE BRASIL</span>
+            <div class="nnome-linha"><a class="nnome"
+            href="https://www.marinetraffic.com/pt/ais/details/ships/imo:9083055"
+            target="_blank" rel="noopener">MONTE BRASIL</a>
             <span class="nestado">GO</span></div>
             <div class="nmeta">entrada · 20/07 06:00</div>
             <div class='chips'><span class='chip'>Porta-contentores</span><span class='chip'>calado 6.3 m</span><span class='chip'>TERMINAL MULTIPURPOSE DE LISBOA</span></div>
@@ -190,7 +203,9 @@ são PLACEHOLDERS por validar.</div>
         <div class="navio">
           <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
           <div class="navio-corpo">
-            <div class="nnome-linha"><span class="nnome">Seven Seas Voyager</span>
+            <div class="nnome-linha"><a class="nnome"
+            href="https://www.marinetraffic.com/pt/ais/details/ships/imo:9247144"
+            target="_blank" rel="noopener">Seven Seas Voyager</a>
             <span class="nestado">GO</span></div>
             <div class="nmeta">entrada · 20/07 06:00</div>
             <div class='chips'><span class='chip'>CRUZEIROS</span><span class='chip'>calado 7.1 m</span><span class='chip'>CAIS DE STª APOLONIA/TERMINAL DE PASSAGEIROS</span></div>
@@ -200,7 +215,9 @@ são PLACEHOLDERS por validar.</div>
         <div class="navio">
           <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
           <div class="navio-corpo">
-            <div class="nnome-linha"><span class="nnome">CAPT. KATTELMAN</span>
+            <div class="nnome-linha"><a class="nnome"
+            href="https://www.marinetraffic.com/pt/ais/details/ships/imo:9330915"
+            target="_blank" rel="noopener">CAPT. KATTELMAN</a>
             <span class="nestado">GO</span></div>
             <div class="nmeta">entrada · 20/07 06:05</div>
             <div class='chips'><span class='chip'>Porta-Contentores</span><span class='chip'>calado 7 m</span><span class='chip'>TERM CONTENT ALCANTARA /  LISCONT</span></div>
@@ -210,7 +227,9 @@ são PLACEHOLDERS por validar.</div>
         <div class="navio">
           <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
           <div class="navio-corpo">
-            <div class="nnome-linha"><span class="nnome">TEOS</span>
+            <div class="nnome-linha"><a class="nnome"
+            href="https://www.marinetraffic.com/pt/ais/details/ships/imo:9173331"
+            target="_blank" rel="noopener">TEOS</a>
             <span class="nestado">GO</span></div>
             <div class="nmeta">entrada · 20/07 08:00</div>
             <div class='chips'><span class='chip'>Carga Geral multi deck</span><span class='chip'>calado 5.5 m</span><span class='chip'>TERMINAL MULTIPURPOSE DE LISBOA</span></div>
@@ -220,7 +239,9 @@ são PLACEHOLDERS por validar.</div>
         <div class="navio">
           <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
           <div class="navio-corpo">
-            <div class="nnome-linha"><span class="nnome">BOMAR HAWK</span>
+            <div class="nnome-linha"><a class="nnome"
+            href="https://www.marinetraffic.com/pt/ais/details/ships/imo:9396000"
+            target="_blank" rel="noopener">BOMAR HAWK</a>
             <span class="nestado">GO</span></div>
             <div class="nmeta">entrada · 20/07 09:00</div>
             <div class='chips'><span class='chip'>Tanque Químico</span><span class='chip'>calado 9.8 m</span><span class='chip'>EST.ASSIST.NAVAL PORTO LISBOA</span></div>
@@ -230,7 +251,9 @@ são PLACEHOLDERS por validar.</div>
         <div class="navio">
           <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
           <div class="navio-corpo">
-            <div class="nnome-linha"><span class="nnome">GULF BLUE</span>
+            <div class="nnome-linha"><a class="nnome"
+            href="https://www.marinetraffic.com/pt/ais/details/ships/imo:9125073"
+            target="_blank" rel="noopener">GULF BLUE</a>
             <span class="nestado">GO</span></div>
             <div class="nmeta">entrada · 20/07 09:00</div>
             <div class='chips'><span class='chip'>Misto - Carga geral / Contentores</span><span class='chip'>calado 3.5 m</span><span class='chip'>CAIS DO POÇO DO BISPO / TMPB</span></div>
@@ -240,7 +263,9 @@ são PLACEHOLDERS por validar.</div>
         <div class="navio">
           <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
           <div class="navio-corpo">
-            <div class="nnome-linha"><span class="nnome">SEAHOPE</span>
+            <div class="nnome-linha"><a class="nnome"
+            href="https://www.marinetraffic.com/pt/ais/details/ships/imo:9598294"
+            target="_blank" rel="noopener">SEAHOPE</a>
             <span class="nestado">GO</span></div>
             <div class="nmeta">entrada · 20/07 09:00</div>
             <div class='chips'><span class='chip'>Graneleiro</span><span class='chip'>calado 10.12 m</span><span class='chip'>TERM CONTENT ALCANTARA/LISCONT-JUSANTE</span></div>
@@ -250,7 +275,9 @@ são PLACEHOLDERS por validar.</div>
         <div class="navio">
           <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
           <div class="navio-corpo">
-            <div class="nnome-linha"><span class="nnome">MH SHOGUN</span>
+            <div class="nnome-linha"><a class="nnome"
+            href="https://www.marinetraffic.com/pt/ais/details/ships/imo:9986013"
+            target="_blank" rel="noopener">MH SHOGUN</a>
             <span class="nestado">GO</span></div>
             <div class="nmeta">entrada · 20/07 12:00</div>
             <div class='chips'><span class='chip'>Petroleiro para carregamento de crude</span><span class='chip'>calado 8.5 m</span><span class='chip'>TERM GRANEIS CHANE/BARREIRO</span></div>
@@ -260,7 +287,9 @@ são PLACEHOLDERS por validar.</div>
         <div class="navio">
           <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
           <div class="navio-corpo">
-            <div class="nnome-linha"><span class="nnome">EA GANNET</span>
+            <div class="nnome-linha"><a class="nnome"
+            href="https://www.marinetraffic.com/pt/ais/details/ships/imo:9937476"
+            target="_blank" rel="noopener">EA GANNET</a>
             <span class="nestado">GO</span></div>
             <div class="nmeta">entrada · 20/07 15:01</div>
             <div class='chips'><span class='chip'>Porta-Contentores</span><span class='chip'>calado 8 m</span><span class='chip'>TERM CONTENT ALCANTARA /  LISCONT</span></div>
@@ -270,7 +299,9 @@ são PLACEHOLDERS por validar.</div>
         <div class="navio">
           <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
           <div class="navio-corpo">
-            <div class="nnome-linha"><span class="nnome">CTM ISTMO</span>
+            <div class="nnome-linha"><a class="nnome"
+            href="https://www.marinetraffic.com/pt/ais/details/ships/imo:9430870"
+            target="_blank" rel="noopener">CTM ISTMO</a>
             <span class="nestado">GO</span></div>
             <div class="nmeta">entrada · 21/07 07:00</div>
             <div class='chips'><span class='chip'>Porta-contentores</span><span class='chip'>calado 8.9 m</span><span class='chip'>TERM CONTENT ALCANTARA /  LISCONT</span></div>
@@ -280,7 +311,9 @@ são PLACEHOLDERS por validar.</div>
         <div class="navio">
           <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
           <div class="navio-corpo">
-            <div class="nnome-linha"><span class="nnome">SINAR BUKITTINGGI</span>
+            <div class="nnome-linha"><a class="nnome"
+            href="https://www.marinetraffic.com/pt/ais/details/ships/imo:9942299"
+            target="_blank" rel="noopener">SINAR BUKITTINGGI</a>
             <span class="nestado">GO</span></div>
             <div class="nmeta">entrada · 21/07 07:00</div>
             <div class='chips'><span class='chip'>Porta-Contentores</span><span class='chip'>calado 8.7 m</span><span class='chip'>TERM CONTENT ALCANTARA /  LISCONT</span></div>
@@ -290,7 +323,9 @@ são PLACEHOLDERS por validar.</div>
         <div class="navio">
           <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
           <div class="navio-corpo">
-            <div class="nnome-linha"><span class="nnome">GALBOT</span>
+            <div class="nnome-linha"><a class="nnome"
+            href="https://www.marinetraffic.com/pt/ais/details/ships/imo:9555084"
+            target="_blank" rel="noopener">GALBOT</a>
             <span class="nestado">GO</span></div>
             <div class="nmeta">entrada · 21/07 09:00</div>
             <div class='chips'><span class='chip'>Tanque Químico</span><span class='chip'>calado 7.1 m</span><span class='chip'>EST.ASSIST.NAVAL PORTO LISBOA</span></div>
@@ -300,7 +335,9 @@ são PLACEHOLDERS por validar.</div>
         <div class="navio">
           <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
           <div class="navio-corpo">
-            <div class="nnome-linha"><span class="nnome">FIRDEVS</span>
+            <div class="nnome-linha"><a class="nnome"
+            href="https://www.marinetraffic.com/pt/ais/details/ships/imo:9100140"
+            target="_blank" rel="noopener">FIRDEVS</a>
             <span class="nestado">GO</span></div>
             <div class="nmeta">entrada · 21/07 10:00</div>
             <div class='chips'><span class='chip'>Misto - Carga geral / Contentores</span><span class='chip'>calado 5.45 m</span><span class='chip'>TERM.GR.ALIM.BEATO / SILOTAGUS</span></div>
@@ -310,7 +347,9 @@ são PLACEHOLDERS por validar.</div>
         <div class="navio">
           <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
           <div class="navio-corpo">
-            <div class="nnome-linha"><span class="nnome">AFINA I</span>
+            <div class="nnome-linha"><a class="nnome"
+            href="https://www.marinetraffic.com/pt/ais/details/ships/imo:9585015"
+            target="_blank" rel="noopener">AFINA I</a>
             <span class="nestado">GO</span></div>
             <div class="nmeta">entrada · 21/07 12:00</div>
             <div class='chips'><span class='chip'>Carga Geral</span><span class='chip'>calado 5.1 m</span><span class='chip'>CAIS DO BEATO / TMB</span></div>
@@ -320,7 +359,9 @@ são PLACEHOLDERS por validar.</div>
         <div class="navio">
           <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
           <div class="navio-corpo">
-            <div class="nnome-linha"><span class="nnome">X-PRESS KAVERI</span>
+            <div class="nnome-linha"><a class="nnome"
+            href="https://www.marinetraffic.com/pt/ais/details/ships/imo:9470765"
+            target="_blank" rel="noopener">X-PRESS KAVERI</a>
             <span class="nestado">GO</span></div>
             <div class="nmeta">entrada · 21/07 16:00</div>
             <div class='chips'><span class='chip'>Porta-Contentores</span><span class='chip'>calado 7 m</span><span class='chip'>TERM CONTENT ALCANTARA /  LISCONT</span></div>
@@ -330,7 +371,9 @@ são PLACEHOLDERS por validar.</div>
         <div class="navio">
           <span class="farol" style="background:#C0392B" aria-hidden="true"></span>
           <div class="navio-corpo">
-            <div class="nnome-linha"><span class="nnome">EASTERN HEATHER</span>
+            <div class="nnome-linha"><a class="nnome"
+            href="https://www.marinetraffic.com/pt/ais/details/ships/imo:9948023"
+            target="_blank" rel="noopener">EASTERN HEATHER</a>
             <span class="nestado">NO-GO</span></div>
             <div class="nmeta">entrada · 21/07 16:00</div>
             <div class='chips'><span class='chip'>Graneleiro</span><span class='chip'>calado 131 m</span><span class='chip'>TERM GRANEIS SOVENA/PALENÇA</span></div>
@@ -340,7 +383,9 @@ são PLACEHOLDERS por validar.</div>
         <div class="navio">
           <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
           <div class="navio-corpo">
-            <div class="nnome-linha"><span class="nnome">API BHUM</span>
+            <div class="nnome-linha"><a class="nnome"
+            href="https://www.marinetraffic.com/pt/ais/details/ships/imo:9292149"
+            target="_blank" rel="noopener">API BHUM</a>
             <span class="nestado">GO</span></div>
             <div class="nmeta">entrada · 21/07 19:00</div>
             <div class='chips'><span class='chip'>Porta-Contentores</span><span class='chip'>calado 10 m</span><span class='chip'>TERM CONTENT ALCANTARA /  LISCONT</span></div>
@@ -350,7 +395,9 @@ são PLACEHOLDERS por validar.</div>
         <div class="navio">
           <span class="farol" style="background:#5C6E7C" aria-hidden="true"></span>
           <div class="navio-corpo">
-            <div class="nnome-linha"><span class="nnome">ULTIMAX</span>
+            <div class="nnome-linha"><a class="nnome"
+            href="https://www.marinetraffic.com/pt/ais/details/ships/imo:9343479"
+            target="_blank" rel="noopener">ULTIMAX</a>
             <span class="nestado">sem avaliação</span></div>
             <div class="nmeta">entrada · 22/07 08:00</div>
             <div class='chips'><span class='chip'>Carga Geral / Toros e Madeira</span><span class='chip'>calado 7.64 m</span><span class='chip'>FUNDEADOURO QUADRO CENTRAL</span></div>
@@ -360,7 +407,9 @@ são PLACEHOLDERS por validar.</div>
         <div class="navio">
           <span class="farol" style="background:#5C6E7C" aria-hidden="true"></span>
           <div class="navio-corpo">
-            <div class="nnome-linha"><span class="nnome">OLYMPIC DELTA</span>
+            <div class="nnome-linha"><a class="nnome"
+            href="https://www.marinetraffic.com/pt/ais/details/ships/imo:9745768"
+            target="_blank" rel="noopener">OLYMPIC DELTA</a>
             <span class="nestado">sem avaliação</span></div>
             <div class="nmeta">entrada · 22/07 12:00</div>
             <div class='chips'><span class='chip'>Sondagem / Exploração ao largo</span><span class='chip'>calado 6.1 m</span><span class='chip'>CAIS DA ROCHA/TERMINAL DE PASSAGEIROS</span></div>
@@ -370,7 +419,9 @@ são PLACEHOLDERS por validar.</div>
         <div class="navio">
           <span class="farol" style="background:#5C6E7C" aria-hidden="true"></span>
           <div class="navio-corpo">
-            <div class="nnome-linha"><span class="nnome">MANDO</span>
+            <div class="nnome-linha"><a class="nnome"
+            href="https://www.marinetraffic.com/pt/ais/details/ships/imo:9175705"
+            target="_blank" rel="noopener">MANDO</a>
             <span class="nestado">sem avaliação</span></div>
             <div class="nmeta">entrada · 22/07 16:00</div>
             <div class='chips'><span class='chip'>Porta-contentores</span><span class='chip'>calado 8 m</span><span class='chip'>TERM CONTENT ALCANTARA /  LISCONT</span></div>
@@ -380,7 +431,9 @@ são PLACEHOLDERS por validar.</div>
         <div class="navio">
           <span class="farol" style="background:#5C6E7C" aria-hidden="true"></span>
           <div class="navio-corpo">
-            <div class="nnome-linha"><span class="nnome">CANNETO M</span>
+            <div class="nnome-linha"><a class="nnome"
+            href="https://www.marinetraffic.com/pt/ais/details/ships/imo:9359583"
+            target="_blank" rel="noopener">CANNETO M</a>
             <span class="nestado">sem avaliação</span></div>
             <div class="nmeta">entrada · 22/07 20:30</div>
             <div class='chips'><span class='chip'>Petroleiro para carregamento de crude</span><span class='chip'>calado 7 m</span><span class='chip'>TERM GRANEIS CHANE/BARREIRO</span></div>
@@ -390,7 +443,9 @@ são PLACEHOLDERS por validar.</div>
         <div class="navio">
           <span class="farol" style="background:#5C6E7C" aria-hidden="true"></span>
           <div class="navio-corpo">
-            <div class="nnome-linha"><span class="nnome">NAUTICA</span>
+            <div class="nnome-linha"><a class="nnome"
+            href="https://www.marinetraffic.com/pt/ais/details/ships/imo:9200938"
+            target="_blank" rel="noopener">NAUTICA</a>
             <span class="nestado">sem avaliação</span></div>
             <div class="nmeta">entrada · 23/07 05:45</div>
             <div class='chips'><span class='chip'>CRUZEIROS</span><span class='chip'>calado 6.1 m</span><span class='chip'>CAIS DE STª APOLONIA/TERMINAL DE PASSAGEIROS</span></div>
@@ -400,7 +455,9 @@ são PLACEHOLDERS por validar.</div>
         <div class="navio">
           <span class="farol" style="background:#5C6E7C" aria-hidden="true"></span>
           <div class="navio-corpo">
-            <div class="nnome-linha"><span class="nnome">LAGOA</span>
+            <div class="nnome-linha"><a class="nnome"
+            href="https://www.marinetraffic.com/pt/ais/details/ships/imo:9150470"
+            target="_blank" rel="noopener">LAGOA</a>
             <span class="nestado">sem avaliação</span></div>
             <div class="nmeta">entrada · 23/07 08:00</div>
             <div class='chips'><span class='chip'>Porta-contentores</span><span class='chip'>calado 6 m</span><span class='chip'>TERMINAL MULTIPURPOSE DE LISBOA</span></div>
@@ -410,7 +467,9 @@ são PLACEHOLDERS por validar.</div>
         <div class="navio">
           <span class="farol" style="background:#5C6E7C" aria-hidden="true"></span>
           <div class="navio-corpo">
-            <div class="nnome-linha"><span class="nnome">EUROPA 2</span>
+            <div class="nnome-linha"><a class="nnome"
+            href="https://www.marinetraffic.com/pt/ais/details/ships/imo:9616230"
+            target="_blank" rel="noopener">EUROPA 2</a>
             <span class="nestado">sem avaliação</span></div>
             <div class="nmeta">entrada · 23/07 10:00</div>
             <div class='chips'><span class='chip'>CRUZEIROS</span><span class='chip'>calado 6.3 m</span><span class='chip'>CAIS DE STª APOLONIA/TERMINAL DE PASSAGEIROS</span></div>
@@ -420,7 +479,9 @@ são PLACEHOLDERS por validar.</div>
         <div class="navio">
           <span class="farol" style="background:#5C6E7C" aria-hidden="true"></span>
           <div class="navio-corpo">
-            <div class="nnome-linha"><span class="nnome">NYK VENUS</span>
+            <div class="nnome-linha"><a class="nnome"
+            href="https://www.marinetraffic.com/pt/ais/details/ships/imo:9312793"
+            target="_blank" rel="noopener">NYK VENUS</a>
             <span class="nestado">sem avaliação</span></div>
             <div class="nmeta">entrada · 23/07 10:00</div>
             <div class='chips'><span class='chip'>Porta-Contentores</span><span class='chip'>calado 10.5 m</span><span class='chip'>TERM CONTENT ALCANTARA /  LISCONT</span></div>
@@ -430,7 +491,9 @@ são PLACEHOLDERS por validar.</div>
         <div class="navio">
           <span class="farol" style="background:#5C6E7C" aria-hidden="true"></span>
           <div class="navio-corpo">
-            <div class="nnome-linha"><span class="nnome">AIDAstella</span>
+            <div class="nnome-linha"><a class="nnome"
+            href="https://www.marinetraffic.com/pt/ais/details/ships/imo:9601132"
+            target="_blank" rel="noopener">AIDAstella</a>
             <span class="nestado">sem avaliação</span></div>
             <div class="nmeta">entrada · 23/07 13:15</div>
             <div class='chips'><span class='chip'>CRUZEIROS</span><span class='chip'>calado 7.3 m</span><span class='chip'>CAIS DE STª APOLONIA/TERMINAL DE PASSAGEIROS</span></div>
@@ -441,7 +504,7 @@ são PLACEHOLDERS por validar.</div>
 
 <section aria-labelledby="porto-titulo">
  <h2 id="porto-titulo">Em porto agora (9)</h2>
- <div class='navio'><span class='farol' style='background:#5C6E7C' aria-hidden='true'></span><div class='navio-corpo'><div class='nnome-linha'><span class='nnome'>JAIME S</span></div><div class='chips'><span class='chip'>Porta-Contentores</span><span class='chip'>TERM CONTENT STª APOLONIA/SOTAGUS</span></div><div class='nmeta'>ETD prevista: 21/07 23:59</div></div></div><div class='navio'><span class='farol' style='background:#5C6E7C' aria-hidden='true'></span><div class='navio-corpo'><div class='nnome-linha'><span class='nnome'>SMIRNI</span></div><div class='chips'><span class='chip'>Graneleiro</span><span class='chip'>TERM GRANEIS SOVENA/PALENÇA</span></div><div class='nmeta'>ETD prevista: 21/07 06:00</div></div></div><div class='navio'><span class='farol' style='background:#5C6E7C' aria-hidden='true'></span><div class='navio-corpo'><div class='nnome-linha'><span class='nnome'>IRENES RESOLVE</span></div><div class='chips'><span class='chip'>Porta-contentores</span><span class='chip'>TERM CONTENT ALCANTARA /  LISCONT</span></div><div class='nmeta'>ETD prevista: 19/07 23:59</div></div></div><div class='navio'><span class='farol' style='background:#5C6E7C' aria-hidden='true'></span><div class='navio-corpo'><div class='nnome-linha'><span class='nnome'>GRETA K</span></div><div class='chips'><span class='chip'>Tanque Petroleiro</span><span class='chip'>TERM COMB REPSOL/BANATICA</span></div><div class='nmeta'>ETD prevista: 20/07 23:00</div></div></div><div class='navio'><span class='farol' style='background:#5C6E7C' aria-hidden='true'></span><div class='navio-corpo'><div class='nnome-linha'><span class='nnome'>Arklow Glen</span></div><div class='chips'><span class='chip'>Carga Geral</span><span class='chip'>CAIS DO BEATO / TMB</span></div><div class='nmeta'>ETD prevista: 24/07 06:00</div></div></div><div class='navio'><span class='farol' style='background:#5C6E7C' aria-hidden='true'></span><div class='navio-corpo'><div class='nnome-linha'><span class='nnome'>AÇOR B</span></div><div class='chips'><span class='chip'>Carga Geral / Contentores</span><span class='chip'>TERM CONTENT STª APOLONIA/SOTAGUS</span></div><div class='nmeta'>ETD prevista: 19/07 16:00</div></div></div><div class='navio'><span class='farol' style='background:#5C6E7C' aria-hidden='true'></span><div class='navio-corpo'><div class='nnome-linha'><span class='nnome'>JUGURTHA</span></div><div class='chips'><span class='chip'>Navio Guerra</span><span class='chip'>CAIS DA ROCHA/TERMINAL DE PASSAGEIROS</span></div><div class='nmeta'>ETD prevista: 19/07 08:15</div></div></div><div class='navio'><span class='farol' style='background:#5C6E7C' aria-hidden='true'></span><div class='navio-corpo'><div class='nnome-linha'><span class='nnome'>SOPHONISBE</span></div><div class='chips'><span class='chip'>Navio Guerra</span><span class='chip'>CAIS DA ROCHA/TERMINAL DE PASSAGEIROS</span></div><div class='nmeta'>ETD prevista: 19/07 08:15</div></div></div><div class='navio'><span class='farol' style='background:#5C6E7C' aria-hidden='true'></span><div class='navio-corpo'><div class='nnome-linha'><span class='nnome'>MARVELOUS STAR</span></div><div class='chips'><span class='chip'>Graneleiro</span><span class='chip'>TERM.GR.ALIM.TRAFARIA / SILOTAGUS</span></div><div class='nmeta'>ETD prevista: 20/07 20:00</div></div></div>
+ <div class='navio'><span class='farol' style='background:#5C6E7C' aria-hidden='true'></span><div class='navio-corpo'><div class='nnome-linha'><a class='nnome' href="https://www.marinetraffic.com/pt/ais/details/ships/imo:9428217" target='_blank' rel='noopener'>JAIME S</a></div><div class='chips'><span class='chip'>Porta-Contentores</span><span class='chip'>TERM CONTENT STª APOLONIA/SOTAGUS</span></div><div class='nmeta'>ETD prevista: 21/07 23:59</div></div></div><div class='navio'><span class='farol' style='background:#5C6E7C' aria-hidden='true'></span><div class='navio-corpo'><div class='nnome-linha'><a class='nnome' href="https://www.marinetraffic.com/pt/ais/details/ships/imo:9858333" target='_blank' rel='noopener'>SMIRNI</a></div><div class='chips'><span class='chip'>Graneleiro</span><span class='chip'>TERM GRANEIS SOVENA/PALENÇA</span></div><div class='nmeta'>ETD prevista: 21/07 06:00</div></div></div><div class='navio'><span class='farol' style='background:#5C6E7C' aria-hidden='true'></span><div class='navio-corpo'><div class='nnome-linha'><a class='nnome' href="https://www.marinetraffic.com/pt/ais/details/ships/imo:9227273" target='_blank' rel='noopener'>IRENES RESOLVE</a></div><div class='chips'><span class='chip'>Porta-contentores</span><span class='chip'>TERM CONTENT ALCANTARA /  LISCONT</span></div><div class='nmeta'>ETD prevista: 19/07 23:59</div></div></div><div class='navio'><span class='farol' style='background:#5C6E7C' aria-hidden='true'></span><div class='navio-corpo'><div class='nnome-linha'><a class='nnome' href="https://www.marinetraffic.com/pt/ais/details/ships/imo:9800374" target='_blank' rel='noopener'>GRETA K</a></div><div class='chips'><span class='chip'>Tanque Petroleiro</span><span class='chip'>TERM COMB REPSOL/BANATICA</span></div><div class='nmeta'>ETD prevista: 20/07 23:00</div></div></div><div class='navio'><span class='farol' style='background:#5C6E7C' aria-hidden='true'></span><div class='navio-corpo'><div class='nnome-linha'><a class='nnome' href="https://www.marinetraffic.com/pt/ais/details/ships/imo:9874090" target='_blank' rel='noopener'>Arklow Glen</a></div><div class='chips'><span class='chip'>Carga Geral</span><span class='chip'>CAIS DO BEATO / TMB</span></div><div class='nmeta'>ETD prevista: 24/07 06:00</div></div></div><div class='navio'><span class='farol' style='background:#5C6E7C' aria-hidden='true'></span><div class='navio-corpo'><div class='nnome-linha'><a class='nnome' href="https://www.marinetraffic.com/pt/ais/details/ships/imo:9322853" target='_blank' rel='noopener'>AÇOR B</a></div><div class='chips'><span class='chip'>Carga Geral / Contentores</span><span class='chip'>TERM CONTENT STª APOLONIA/SOTAGUS</span></div><div class='nmeta'>ETD prevista: 19/07 16:00</div></div></div><div class='navio'><span class='farol' style='background:#5C6E7C' aria-hidden='true'></span><div class='navio-corpo'><div class='nnome-linha'><a class='nnome' href="https://www.marinetraffic.com/pt/ais/details/ships/imo:2224595" target='_blank' rel='noopener'>JUGURTHA</a></div><div class='chips'><span class='chip'>Navio Guerra</span><span class='chip'>CAIS DA ROCHA/TERMINAL DE PASSAGEIROS</span></div><div class='nmeta'>ETD prevista: 19/07 08:15</div></div></div><div class='navio'><span class='farol' style='background:#5C6E7C' aria-hidden='true'></span><div class='navio-corpo'><div class='nnome-linha'><a class='nnome' href="https://www.marinetraffic.com/pt/ais/index/search/all?keyword=SOPHONISBE" target='_blank' rel='noopener'>SOPHONISBE</a></div><div class='chips'><span class='chip'>Navio Guerra</span><span class='chip'>CAIS DA ROCHA/TERMINAL DE PASSAGEIROS</span></div><div class='nmeta'>ETD prevista: 19/07 08:15</div></div></div><div class='navio'><span class='farol' style='background:#5C6E7C' aria-hidden='true'></span><div class='navio-corpo'><div class='nnome-linha'><a class='nnome' href="https://www.marinetraffic.com/pt/ais/details/ships/imo:9864095" target='_blank' rel='noopener'>MARVELOUS STAR</a></div><div class='chips'><span class='chip'>Graneleiro</span><span class='chip'>TERM.GR.ALIM.TRAFARIA / SILOTAGUS</span></div><div class='nmeta'>ETD prevista: 20/07 20:00</div></div></div>
 </section>
 
 <section aria-labelledby="regras-titulo">

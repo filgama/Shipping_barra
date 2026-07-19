@@ -122,7 +122,7 @@ def teste_extrair_navios():
     apl = {"chegadas": {"titulo": "t", "registos": [
         {"navio": "ALFA", "eta": "2026-07-18 10:00:00.0", "ata": "",
          "atd": "", "caladoMaxEntrada": 8.2, "nv_tipoNavio": "Carga",
-         "zona": "CAIS X"},
+         "zona": "CAIS X", "imo": "9638147"},
         {"navio": "ALFA", "eta": "2026-07-18 10:00:00.0", "ata": "",
          "atd": "", "caladoMaxEntrada": 8.2},           # duplicado
         {"navio": "BRAVO", "eta": "2026-07-18 12:00:00.0",
@@ -134,6 +134,11 @@ def teste_extrair_navios():
     assert [n["nome"] for n in navios] == ["ALFA", "CHARLIE"]
     assert navios[0]["calado"] == 8.2
     assert navios[1]["momento"] is None and navios[1]["calado"] is None
+    assert navios[0]["imo"] == "9638147" and navios[1]["imo"] is None
+    assert jb._imo({"imo": "2224596"}) is None       # checksum IMO inválido
+    assert jb.link_marinetraffic("ALFA", "9638147").endswith("imo:9638147")
+    assert "keyword=WOOYANG%20CLES" in jb.link_marinetraffic(
+        "WOOYANG CLES", None)
 
 
 def teste_cardeal_seta():
@@ -195,6 +200,7 @@ def teste_html_em_porto():
     avals = [jb.avaliar_hora(h, REGRAS) for h in prev]
     out = jb.gerar_html(prev, avals, [], apl, REGRAS)
     assert "Em porto agora (1)" in out and "DELTA" in out
+    assert "marinetraffic.com" in out          # nome do navio é link
 
 
 def teste_dark_mode():

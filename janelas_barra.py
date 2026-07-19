@@ -318,6 +318,26 @@ def _momento(texto) -> datetime | None:
         return None
 
 
+def _imo(reg: dict) -> str | None:
+    """Número IMO do registo APL, validado (7 dígitos + dígito de controlo:
+    soma dos 6 primeiros × pesos 7..2, mod 10). A APL às vezes devolve ids
+    internos neste campo; o checksum filtra-os."""
+    imo = str(reg.get("imo") or reg.get("nv_imo") or "").strip()
+    if not (imo.isdigit() and len(imo) == 7):
+        return None
+    controlo = sum(int(d) * p for d, p in zip(imo[:6], range(7, 1, -1))) % 10
+    return imo if controlo == int(imo[6]) else None
+
+
+def link_marinetraffic(nome: str, imo: str | None) -> str:
+    """URL MarineTraffic do navio: ficha por IMO se conhecido,
+    senão pesquisa pelo nome."""
+    if imo:
+        return f"https://www.marinetraffic.com/pt/ais/details/ships/imo:{imo}"
+    return ("https://www.marinetraffic.com/pt/ais/index/search/all?keyword="
+            + urllib.parse.quote(nome))
+
+
 def extrair_navios(apl: dict) -> list[dict]:
     """Converte os registos JSON da APL em navios com nome, momento (ETA/ETD),
     sentido, calado e tipo. Ignora escalas já concretizadas (ATA/ATD).
@@ -346,7 +366,8 @@ def extrair_navios(apl: dict) -> list[dict]:
             navios.append({"nome": nome, "sentido": sentido,
                            "momento": momento, "calado": calado,
                            "tipo": (reg.get("nv_tipoNavio") or "").strip(),
-                           "zona": (reg.get("zona") or "").strip()})
+                           "zona": (reg.get("zona") or "").strip(),
+                           "imo": _imo(reg)})
     return navios
 
 
@@ -373,7 +394,8 @@ def filtrar_em_porto(registos, agora=None) -> list[dict]:
         out.append({"nome": nome, "ata": ata,
                     "etd": _momento(reg.get("etd")),
                     "tipo": (reg.get("nv_tipoNavio") or "").strip(),
-                    "zona": (reg.get("zona") or "").strip()})
+                    "zona": (reg.get("zona") or "").strip(),
+                    "imo": _imo(reg)})
     out.sort(key=lambda n: n["ata"], reverse=True)
     return out
 
@@ -627,7 +649,9 @@ def gerar_html(previsao, avaliacoes, navios, apl, regras) -> str:
         <div class="navio">
           <span class="farol" style="background:{cor}" aria-hidden="true"></span>
           <div class="navio-corpo">
-            <div class="nnome-linha"><span class="nnome">{e(n['nome'])}</span>
+            <div class="nnome-linha"><a class="nnome"
+            href="{e(link_marinetraffic(n['nome'], n.get('imo')))}"
+            target="_blank" rel="noopener">{e(n['nome'])}</a>
             <span class="nestado">{e(rot_n)}</span></div>
             <div class="nmeta">{e(n['sentido'])} · {quando}</div>
             {chips_html}
@@ -666,8 +690,10 @@ def gerar_html(previsao, avaliacoes, navios, apl, regras) -> str:
             f"<div class='navio'><span class='farol' "
             f"style='background:#5C6E7C' aria-hidden='true'></span>"
             f"<div class='navio-corpo'>"
-            f"<div class='nnome-linha'><span class='nnome'>{e(n['nome'])}"
-            f"</span></div>{chips_html}"
+            f"<div class='nnome-linha'><a class='nnome' "
+            f"href=\"{e(link_marinetraffic(n['nome'], n.get('imo')))}\" "
+            f"target='_blank' rel='noopener'>{e(n['nome'])}"
+            f"</a></div>{chips_html}"
             f"<div class='nmeta'>ETD prevista: {etd}</div></div></div>")
     seccao_porto = ("".join(linhas_porto) or
                     "<p class='vazio'>Sem navios em porto nesta recolha.</p>")
@@ -746,6 +772,9 @@ def gerar_html(previsao, avaliacoes, navios, apl, regras) -> str:
  .navio-corpo {{ min-width:0; flex:1; }}
  .nnome-linha {{ display:flex; flex-wrap:wrap; align-items:baseline; gap:6px; }}
  .nnome {{ font-weight:600; font-size:15px; }}
+ a.nnome {{ color:inherit; text-decoration:underline;
+           text-decoration-color:#8FA6B5; text-underline-offset:2px; }}
+ a.nnome:hover, a.nnome:focus-visible {{ text-decoration-color:currentColor; }}
  .nestado {{ font-size:11px; font-weight:700; color:#5C6E7C; }}
  .nmeta {{ font-size:12px; color:#5C6E7C; }}
  .chips {{ margin-top:4px; display:flex; flex-wrap:wrap; gap:4px; }}
