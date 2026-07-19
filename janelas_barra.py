@@ -177,34 +177,26 @@ def _get_json(url: str) -> dict:
     return _com_tentativas(_pedir)
 
 
-def recolher_meteomar(porto: dict, horas: int) -> list[dict]:
-    """Lista de dicts por hora: tempo, onda_altura, swell_*, nivel_mar,
-    vento_kn, rajada_kn, vento_dir, corrente_kn, corrente_dir,
-    visibilidade_m, e_dia. `porto` é uma entrada do catálogo portos.toml
-    (usa latitude/longitude); pede timezone=auto às duas APIs Open-Meteo
-    para que as horas devolvidas fiquem na hora local de CADA porto."""
-    lat = porto["latitude"]
-    lon = porto["longitude"]
-    dias = max(2, min(7, (horas // 24) + 1))
+# Tamanho de lote HTTP para os pedidos Open-Meteo — CONSTANTE TÉCNICA (não é
+# limiar de decisão náutica: não entra na regra de ouro do projeto). As duas
+# APIs Open-Meteo aceitam várias coordenadas por pedido
+# (`latitude=a,b&longitude=c,d` -> array JSON, um objeto por coordenada, pela
+# mesma ordem), o que permite pedir meteo-mar para N portos de uma vez em vez
+# de 2 pedidos por porto — muito menos pedidos, muito menos throttling do
+# Open-Meteo num CI que corre ~50 portos seguidos. O lote fica limitado (em
+# vez de um único pedido com todos os portos) para conter o raio de falha de
+# um pedido que corra mal e o tamanho da resposta JSON.
+LOTE_METEO_PORTOS = 12
 
-    marine = _get_json(
-        "https://marine-api.open-meteo.com/v1/marine"
-        f"?latitude={lat}&longitude={lon}"
-        "&hourly=wave_height,wave_direction,wave_period,"
-        "swell_wave_height,swell_wave_direction,swell_wave_period,"
-        "sea_level_height_msl,ocean_current_velocity,ocean_current_direction"
-        f"&timezone=auto&forecast_days={dias}"
-    )
-    vento = _get_json(
-        "https://api.open-meteo.com/v1/forecast"
-        f"?latitude={lat}&longitude={lon}"
-        "&hourly=wind_speed_10m,wind_gusts_10m,wind_direction_10m,"
-        "visibility,is_day"
-        "&wind_speed_unit=kn"
-        f"&timezone=auto&forecast_days={dias}"
-    )
 
-    hm, hv = marine["hourly"], vento["hourly"]
+def _linhas_meteomar(hm: dict, hv: dict, horas: int) -> list[dict]:
+    """Função PURA: converte os blocos "hourly" de UMA resposta marine +
+    UMA resposta forecast (já isoladas para um único porto) na lista de
+    dicts por hora usada pelo resto do pipeline: tempo, onda_altura,
+    swell_*, nivel_mar, vento_kn, rajada_kn, vento_dir, corrente_kn,
+    corrente_dir, visibilidade_m, e_dia (inclui a conversão de corrente de
+    km/h para nós). Trunca a `horas` horas. Extraída de recolher_meteomar
+    para ser testável offline com fixtures sintéticas, sem rede."""
     linhas = []
     for i, t in enumerate(hm["time"][:horas]):
         def g(bloco, chave):
@@ -232,6 +224,74 @@ def recolher_meteomar(porto: dict, horas: int) -> list[dict]:
             "e_dia": g(hv, "is_day"),
         })
     return linhas
+
+
+def _lotes(seq: list, n: int) -> list[list]:
+    """Reparte `seq` em sublistas de tamanho `n`, preservando a ordem; o
+    último lote pode ficar incompleto. Função pura, usada por
+    recolher_meteomar_lote para agrupar os portos em lotes de pedido HTTP."""
+    return [seq[i:i + n] for i in range(0, len(seq), n)]
+
+
+def recolher_meteomar_lote(portos: list[dict], horas: int) -> dict:
+    """Pede meteo-mar para VÁRIOS portos de uma vez, em lotes de
+    LOTE_METEO_PORTOS (ver constante): as duas APIs Open-Meteo aceitam
+    coordenadas em lista separada por vírgulas e devolvem um array JSON —
+    um objeto por coordenada, na mesma ordem (com uma só coordenada
+    devolvem um objeto simples, não um array; normalizamos os dois casos
+    aqui). Devolve {slug: list[dict] | Exception}: se um lote falhar depois
+    dos retries de _get_json, TODOS os portos desse lote recebem a mesma
+    Exception como valor — a degradação fica contida ao lote, os restantes
+    lotes continuam. Cortesia time.sleep(0.3) ENTRE LOTES (já não há um
+    pedido por porto, por isso já não faz sentido a pausa ser por porto)."""
+    dias = max(2, min(7, (horas // 24) + 1))
+    out: dict = {}
+    lotes = _lotes(portos, LOTE_METEO_PORTOS)
+    for indice_lote, lote in enumerate(lotes):
+        lats = ",".join(str(p["latitude"]) for p in lote)
+        lons = ",".join(str(p["longitude"]) for p in lote)
+        try:
+            marine = _get_json(
+                "https://marine-api.open-meteo.com/v1/marine"
+                f"?latitude={lats}&longitude={lons}"
+                "&hourly=wave_height,wave_direction,wave_period,"
+                "swell_wave_height,swell_wave_direction,swell_wave_period,"
+                "sea_level_height_msl,ocean_current_velocity,ocean_current_direction"
+                f"&timezone=auto&forecast_days={dias}"
+            )
+            vento = _get_json(
+                "https://api.open-meteo.com/v1/forecast"
+                f"?latitude={lats}&longitude={lons}"
+                "&hourly=wind_speed_10m,wind_gusts_10m,wind_direction_10m,"
+                "visibility,is_day"
+                "&wind_speed_unit=kn"
+                f"&timezone=auto&forecast_days={dias}"
+            )
+            # uma só coordenada -> a API devolve um objeto simples, não uma
+            # lista de objetos; embrulha para tratar os dois casos em igual.
+            respostas_marine = marine if isinstance(marine, list) else [marine]
+            respostas_vento = vento if isinstance(vento, list) else [vento]
+            for porto, rm, rv in zip(lote, respostas_marine, respostas_vento):
+                out[porto["slug"]] = _linhas_meteomar(rm["hourly"], rv["hourly"], horas)
+        except Exception as exc:
+            # falha contida a este lote — os restantes lotes continuam
+            for porto in lote:
+                out[porto["slug"]] = exc
+        if indice_lote < len(lotes) - 1:
+            time.sleep(0.3)  # cortesia com o Open-Meteo, entre LOTES
+    return out
+
+
+def recolher_meteomar(porto: dict, horas: int) -> list[dict]:
+    """Lista de dicts por hora (ver _linhas_meteomar). Wrapper fino sobre
+    recolher_meteomar_lote com um único porto — mantido por compatibilidade
+    (chamadores e testes que só querem um porto); o caminho principal
+    (main) usa recolher_meteomar_lote diretamente para poupar pedidos
+    HTTP."""
+    resultado = recolher_meteomar_lote([porto], horas)[porto["slug"]]
+    if isinstance(resultado, Exception):
+        raise resultado
+    return resultado
 
 
 # ---------------------------------------------------------------------------
@@ -755,6 +815,23 @@ def _agregar_ais(mensagens: list[dict], porto: dict) -> list[dict]:
     return out
 
 
+def _erro_aisstream(mensagens: list[dict]) -> str | None:
+    """Texto do erro reportado pelo próprio aisstream.io, se alguma
+    mensagem o trouxer. Quando a subscrição é rejeitada (ex.: chave
+    inválida), o servidor manda uma mensagem de texto tipo
+    {"error": "..."} em vez de PositionReport/ShipStaticData — sem
+    MetaData/MMSI, por isso _agregar_ais ignora-a silenciosamente e o
+    painel mostrava "0 navios" sem aviso nenhum. Aceita a chave "error" com
+    E maiúscula ou minúscula; devolve o valor convertido a str do primeiro
+    dict que a tiver, ou None se nenhuma mensagem tiver essa chave. Função
+    pura, testável offline."""
+    for msg in mensagens:
+        for chave in ("error", "Error"):
+            if chave in msg:
+                return str(msg[chave])
+    return None
+
+
 def recolher_ais(chave: str, porto: dict, segundos: int = 60) -> dict:
     """Snapshot AIS de ~`segundos` via aisstream.io, na caixa geográfica
     `porto["ais_bbox"]` (catálogo portos.toml — só quem a tem chama isto).
@@ -772,6 +849,12 @@ def recolher_ais(chave: str, porto: dict, segundos: int = 60) -> dict:
                 mensagens.append(json.loads(b.decode("utf-8")))
             except (UnicodeDecodeError, json.JSONDecodeError):
                 continue
+        erro_subscricao = _erro_aisstream(mensagens)
+        if erro_subscricao:
+            # subscrição rejeitada (ex.: chave inválida) — não prosseguir
+            # para a agregação, que ignoraria esta mensagem em silêncio.
+            return {"navios": [], "erro": f"aisstream: {erro_subscricao}",
+                   "quando": quando, "segundos": segundos}
         navios = _agregar_ais(mensagens, porto)
         return {"navios": navios, "erro": None, "quando": quando,
                "segundos": segundos}
@@ -821,6 +904,14 @@ def recolher_ais_global(chave: str, portos: list[dict], segundos: int = 75) -> d
                 mensagens.append(json.loads(b.decode("utf-8")))
             except (UnicodeDecodeError, json.JSONDecodeError):
                 continue
+        erro_subscricao = _erro_aisstream(mensagens)
+        if erro_subscricao:
+            # subscrição rejeitada (ex.: chave inválida) — mesmo erro para
+            # todos os portos, em vez de prosseguir para a agregação (que
+            # ignoraria esta mensagem em silêncio, por não ter MMSI).
+            return {p["slug"]: {"navios": [], "erro": f"aisstream: {erro_subscricao}",
+                                "quando": quando, "segundos": segundos}
+                   for p in portos}
         out = {}
         for p in portos:
             bbox_p = p.get("ais_bbox") or []
@@ -1968,14 +2059,28 @@ def main() -> None:
             total_navios = sum(len(v["navios"]) for v in ais_por_slug.values())
             print(f"[AIS] {total_navios} navios (agregados) em "
                   f"{len(ais_por_slug)} porto(s)")
+            if total_navios == 0:
+                print("[AIS] aviso: 0 navios em toda a Europa é improvável "
+                      "— verificar chave/subscrição")
 
     (RAIZ / "ports").mkdir(exist_ok=True)
     agora_dt = datetime.now()
+
+    # Meteo-mar em LOTE para todos os portos desta corrida, ANTES do loop —
+    # ver LOTE_METEO_PORTOS/recolher_meteomar_lote: 2 pedidos por lote de
+    # até LOTE_METEO_PORTOS portos, em vez de 2 pedidos por porto.
+    n_lotes = (len(portos) + LOTE_METEO_PORTOS - 1) // LOTE_METEO_PORTOS
+    print(f"[METEO] a pedir previsões em {n_lotes} lote(s) de até "
+          f"{LOTE_METEO_PORTOS} porto(s) …")
+    meteo_por_slug = recolher_meteomar_lote(portos, args.horas)
+
     resultados = []
     for porto in portos:
         slug = porto["slug"]
         try:
-            previsao = recolher_meteomar(porto, args.horas)
+            previsao = meteo_por_slug[slug]
+            if isinstance(previsao, Exception):
+                raise previsao
             avaliacoes = [avaliar_hora(h, regras) for h in previsao]
 
             apl, navios = {}, []
@@ -2025,7 +2130,6 @@ def main() -> None:
             print(f"[{slug}] ERRO: {exc}")
             resultados.append({"porto": porto, "estado_atual": None,
                                "proxima_verde": None, "erro": str(exc)})
-        time.sleep(0.3)  # cortesia com o Open-Meteo
 
     if not any(r["erro"] is None for r in resultados):
         print("[ERRO] nenhum porto gerado com sucesso — landing não escrita")

@@ -657,6 +657,80 @@ def teste_dark_mode():
     assert out.count('name="theme-color"') == 2
 
 
+def teste_linhas_meteomar():
+    """_linhas_meteomar (extraída de recolher_meteomar) sobre blocos hourly
+    sintéticos: campos mapeados corretamente, conversão de corrente km/h ->
+    kn (fator ~0.539957, arredondado a 1 casa), truncagem a `horas` mesmo
+    havendo mais horas disponíveis nos blocos, e campo em falta -> None
+    (sem KeyError)."""
+    hm = {
+        "time": ["2026-07-19T00:00", "2026-07-19T01:00", "2026-07-19T02:00"],
+        "wave_height": [1.0, 1.2, 1.4],
+        "wave_direction": [300.0, 301.0, 302.0],
+        "wave_period": [8.0, 8.1, 8.2],
+        "swell_wave_height": [0.8, 0.9, 1.0],
+        "swell_wave_direction": [315.0, 316.0, 317.0],
+        "swell_wave_period": [12.0, 12.1, 12.2],
+        "sea_level_height_msl": [0.0, 0.5, 1.0],
+        "ocean_current_velocity": [10.0, 5.0, 1.0],
+        "ocean_current_direction": [90.0, 91.0, 92.0],
+    }
+    hv = {
+        "wind_speed_10m": [10.0, 11.0, 12.0],
+        "wind_gusts_10m": [14.0, 15.0, 16.0],
+        "wind_direction_10m": [350.0, 351.0, 352.0],
+        "visibility": [10000.0, 9000.0, 8000.0],
+        "is_day": [1, 1, 0],
+    }
+    linhas = jb._linhas_meteomar(hm, hv, horas=2)
+    assert len(linhas) == 2  # truncado a horas=2, apesar de 3 disponíveis
+    assert linhas[0]["tempo"] == "2026-07-19T00:00"
+    assert linhas[0]["onda_altura"] == 1.0
+    assert linhas[0]["swell_altura"] == 0.8
+    assert linhas[0]["nivel_mar"] == 0.0
+    assert linhas[0]["vento_kn"] == 10.0
+    assert linhas[0]["rajada_kn"] == 14.0
+    assert linhas[0]["visibilidade_m"] == 10000.0
+    assert linhas[0]["e_dia"] == 1
+    # 10 km/h * 0.539957 = 5.39957 -> arredondado a 1 casa = 5.4 kn
+    # (confirma o fator de conversão ~0.54 kn por km/h)
+    assert linhas[0]["corrente_kn"] == 5.4
+    assert linhas[1]["corrente_kn"] == round(5.0 * 0.539957, 1)
+
+    # campo em falta no bloco (ex.: resposta Open-Meteo sem 'visibility')
+    # -> None, sem KeyError
+    hv_sem_visibilidade = dict(hv)
+    del hv_sem_visibilidade["visibility"]
+    linhas2 = jb._linhas_meteomar(hm, hv_sem_visibilidade, horas=2)
+    assert linhas2[0]["visibilidade_m"] is None
+
+
+def teste_erro_aisstream():
+    """_erro_aisstream deteta a rejeição da subscrição aisstream.io (ex.:
+    chave inválida), que chega como {"error": "..."} sem MetaData/MMSI —
+    mensagem que _agregar_ais ignoraria silenciosamente."""
+    assert jb._erro_aisstream([{"error": "Invalid API key"}]) == "Invalid API key"
+    assert jb._erro_aisstream([{"Error": "quota exceeded"}]) == "quota exceeded"
+    mensagens_normais = [
+        {"MessageType": "PositionReport",
+         "MetaData": {"MMSI": 111, "ShipName": "ALFA"},
+         "Message": {"PositionReport": {"Sog": 5.0}}},
+    ]
+    assert jb._erro_aisstream(mensagens_normais) is None
+    assert jb._erro_aisstream([]) is None
+
+
+def teste_lotes():
+    """_lotes (usada por recolher_meteomar_lote) reparte uma sequência em
+    sublistas de tamanho `n`, preservando a ordem; o último lote pode ficar
+    incompleto; sequência vazia -> lista vazia."""
+    seq = list(range(10))
+    assert jb._lotes(seq, 4) == [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9]]
+    assert jb._lotes([], 4) == []
+    assert jb._lotes([1, 2, 3], 5) == [[1, 2, 3]]  # um único lote parcial
+    assert jb._lotes(list(range(12)), 12) == [list(range(12))]  # 1 lote exato
+
+
 def teste_com_tentativas():
     contador = {"n": 0}
 
@@ -696,7 +770,8 @@ TESTES = [teste_avaliar_hora_basico, teste_setor_circular, teste_ukc,
           teste_carregar_portos, teste_carregar_portos_bbox_derivada,
           teste_html_porto_sem_apl,
           teste_html_tabela_regras_formatada,
-          teste_html_landing, teste_dark_mode, teste_com_tentativas]
+          teste_html_landing, teste_dark_mode, teste_com_tentativas,
+          teste_linhas_meteomar, teste_erro_aisstream, teste_lotes]
 
 
 def main():

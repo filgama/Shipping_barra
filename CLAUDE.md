@@ -79,8 +79,10 @@ Fluxo em `janelas_barra.py` (por ordem no ficheiro, funções auxiliares
 privadas `_get_json`/`_momento`/`cardeal_seta` omitidas):
 `carregar_regras`/`carregar_portos` (deriva `ais_bbox` por defeito para
 quem não o tem no catálogo) → UMA VEZ para todos os portos:
-`recolher_ais_global` (se houver `AISSTREAM_KEY`) → por porto:
-`recolher_meteomar(porto)` → `avaliar_hora`/`avaliar_ukc` → (se `apl`)
+`recolher_ais_global` (se houver `AISSTREAM_KEY`) e
+`recolher_meteomar_lote` (meteo-mar em lotes de `LOTE_METEO_PORTOS`
+portos — ver "Fontes de dados") → por porto: lê a previsão já recolhida
+(`meteo_por_slug[slug]`) → `avaliar_hora`/`avaliar_ukc` → (se `apl`)
 `recolher_apl` → `extrair_navios` → `filtrar_em_porto` →
 `classificar_movimento` (por navio AIS, dentro de `gerar_html_porto`) →
 `gerar_svg_mare` → `gerar_html_porto` → `ports/<slug>.html`; no fim,
@@ -124,7 +126,21 @@ barra em texto ou código — se falta um dado, marcar `PLACEHOLDER`.
   **maré modelada relativa ao MSL**, não a tabela oficial do IH — o cálculo
   de UKC soma `canal.profundidade_zh + nivel_mar`, o que mistura referenciais
   (ZH vs MSL). É uma aproximação assumida; está no rodapé do painel e é o
-  item nº 1 do Roadmap.
+  item nº 1 do Roadmap. Desde 2026-07-19, a recolha é em LOTE
+  (`recolher_meteomar_lote`): as duas APIs (marine + forecast) aceitam
+  várias coordenadas por pedido (`latitude=a,b&longitude=c,d` → array JSON,
+  um objeto por coordenada, mesma ordem), pelo que `main` pede meteo-mar
+  para até `LOTE_METEO_PORTOS` (12, constante TÉCNICA — não é limiar de
+  decisão) portos de uma vez, em vez de 2 pedidos HTTP por porto — no
+  catálogo de ~52 portos, isto passou de ~104 pedidos sequenciais (+
+  `time.sleep(0.3)` por porto, mais retries quando o Open-Meteo fazia
+  throttling) para 5 lotes de 2 pedidos cada, com pausa só ENTRE lotes.
+  `_linhas_meteomar` (função pura) converte os blocos "hourly" de uma
+  resposta já isolada por porto nas linhas por hora; `recolher_meteomar`
+  (um porto) continua a existir como wrapper fino sobre o lote, por
+  compatibilidade. Um lote que falhe (depois dos retries de `_get_json`)
+  marca só os portos desse lote com erro — os restantes lotes continuam.
+  Isto resolveu o passo "Gerar painel" do CI a demorar 7+ minutos.
 - **Fuso horário**: pedimos `timezone=auto` ao Open-Meteo, por porto — cada
   página mostra a hora LOCAL do porto (o rodapé di-lo); as ETAs da APL são
   hora de Lisboa, que coincide com a hora local dessa página. A landing usa
@@ -157,7 +173,17 @@ barra em texto ou código — se falta um dado, marcar `PLACEHOLDER`.
   porto/fundeado" e manda sobre o SOG. `recolher_ais` (single-porto) continua
   a existir, mas `main` já só chama `recolher_ais_global`. Nunca lança
   exceção — falhas (sem chave, rede, handshake) viram o MESMO `erro` no
-  dict de cada porto e uma nota/aviso discreto no painel, nunca crash.
+  dict de cada porto e uma nota/aviso discreto no painel, nunca crash. Desde
+  2026-07-19, a rejeição da subscrição (ex.: `AISSTREAM_KEY` inválida) já
+  não é silenciosa: o servidor devolve-a como mensagem de texto
+  `{"error": "..."}`, sem `MetaData`/MMSI — `_agregar_ais` ignorava-a por
+  não ter navio nenhum para agregar, e o painel mostrava "0 navios" sem
+  aviso. `_erro_aisstream` (função pura) deteta essa mensagem ANTES da
+  agregação, em `recolher_ais`/`recolher_ais_global`, e devolve-a como
+  `erro` (prefixado `"aisstream: "`); `main` imprime ainda um aviso
+  (`[AIS] aviso: 0 navios em toda a Europa é improvável`) se a recolha
+  global não reportar erro mas ainda assim agregar 0 navios — era o
+  provável motivo do "0 navios" observado na corrida de 2026-07-19.
 
 ## Convenções
 
@@ -207,10 +233,14 @@ para `avaliar_hora` (incl. sectores que cruzam o Norte), `avaliar_ukc`,
 parser de frames WebSocket (`_ws_parse_frame`), a agregação AIS por MMSI
 (`_agregar_ais`), a distância haversine, o teste ponto-em-caixa
 (`_bbox_contem`), a marcação inicial (`_bearing_graus`), a derivação de
-`ais_bbox` por `carregar_portos` e a classificação de movimento
-(`classificar_movimento`, incl. a secção HTML "Live movements"). Obrigatório
-antes de qualquer commit que toque no motor de regras, no parser ou no
-HTML; o CI corre-o antes de publicar.
+`ais_bbox` por `carregar_portos`, a classificação de movimento
+(`classificar_movimento`, incl. a secção HTML "Live movements"), a conversão
+de blocos "hourly" do Open-Meteo em linhas por hora (`_linhas_meteomar`,
+incl. conversão de corrente km/h→kn e truncagem a `horas`), a repartição em
+lotes de pedido HTTP (`_lotes`) e a deteção de rejeição de subscrição
+aisstream.io (`_erro_aisstream`). Obrigatório antes de qualquer commit que
+toque no motor de regras, no parser ou no HTML; o CI corre-o antes de
+publicar.
 
 ## Estado atual e dívidas conhecidas
 
@@ -269,6 +299,22 @@ HTML; o CI corre-o antes de publicar.
 - [ ] As `[notas_regulamentares]` são específicas de Lisboa mas aparecem em
       todos os portos (assinaladas como tal) — notas por porto são trabalho
       futuro.
+- [x] ~~Passo "Gerar painel" do CI a demorar 7+ minutos~~ — resolvido
+      2026-07-19: causa era a recolha meteo-mar (`recolher_meteomar`) a
+      fazer 2 pedidos HTTP sequenciais ao Open-Meteo POR PORTO (~104
+      pedidos para ~52 portos) + `time.sleep(0.3)` por porto + retries com
+      pausa quando o Open-Meteo fazia throttling a tantos pedidos seguidos.
+      Agora é em LOTE (`recolher_meteomar_lote`/`LOTE_METEO_PORTOS=12`): 2
+      pedidos por lote de até 12 portos (5 lotes para 52 portos), pausa de
+      cortesia só entre lotes. Smoke test local (`--sem-ais --sem-apl`,
+      todos os portos, com rede real) passou de vários minutos para ~8 s.
+- [x] ~~Rejeição da subscrição aisstream.io (ex.: chave inválida) passava
+      silenciosa~~ — resolvido 2026-07-19: `_erro_aisstream` deteta a
+      mensagem `{"error": "..."}` que o servidor manda quando recusa a
+      subscrição (antes ignorada por `_agregar_ais`, por não ter
+      MetaData/MMSI) e devolve-a como `erro` do porto; `main` avisa também
+      se a recolha global não reportar erro mas agregar 0 navios em toda a
+      Europa. Era o provável motivo do "0 navios" da corrida de 2026-07-19.
 - [x] ~~"Em porto/fundeado" decidido só por SOG (adivinhado)~~ — resolvido:
       `classificar_movimento` usa agora `NavigationalStatus` do
       `PositionReport` (`AIS_STATUS_PARADO = {1, 5}` — at anchor/moored)
