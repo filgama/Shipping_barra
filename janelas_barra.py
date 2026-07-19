@@ -59,6 +59,11 @@ SAIDA = RAIZ / "index.html"
 
 MARGEM_BBOX_GRAUS = 0.25  # ~15 NM; caixa AIS por defeito à volta da coordenada de aproximação (aproximada, como as próprias coordenadas — NÃO é limiar de decisão)
 
+# Códigos NavigationalStatus do standard AIS (semântica fixa do protocolo,
+# não limiares de decisão): interpretação autoritativa do estado do navio.
+AIS_STATUS_PARADO = {1, 5}      # 1=at anchor, 5=moored -> em porto/fundeado
+AIS_STATUS_A_NAVEGAR = {0, 8}   # 0=under way using engine, 8=under way sailing
+
 # API JSON do portal APL (Liferay). Serviços descobertos no JS público das
 # páginas "Previsão de chegadas/partidas"; datas em YYYY-MM-DD.
 API_APL = "https://www.portodelisboa.pt/api/jsonws/invoke"
@@ -646,28 +651,37 @@ def _bearing_graus(lat1, lon1, lat2, lon2) -> float:
 
 def classificar_movimento(navio: dict, porto: dict, regras: dict) -> str:
     """Classifica o movimento aparente de um navio a partir de um snapshot
-    AIS instantâneo (SOG/COG) — heurística grosseira, NÃO tracking: um navio
-    a manobrar ou a fundear pode ficar mal classificado numa única leitura.
-    Devolve "entrada" | "saida" | "em_porto" | "indeterminado". Lê os
-    limiares em regras["ais"] (regra de ouro: nenhum número aqui — os
-    `.get(..., defeito)` abaixo são só robustez defensiva caso falte a
-    secção, os valores reais vêm sempre de regras.toml). Função pura,
-    testável offline."""
+    AIS instantâneo — heurística de SOG/COG, NÃO tracking: continua a ser
+    snapshot, e a DIREÇÃO (entrada/saída) continua inferida de um rumo
+    instantâneo, não de trajetória — um navio a manobrar ou de passagem pode
+    ficar mal classificado numa única leitura. O que melhora aqui é o
+    "em porto/fundeado": quando o navio transmite `NavigationalStatus` (ver
+    AIS_STATUS_PARADO/AIS_STATUS_A_NAVEGAR — semântica fixa do standard AIS,
+    não limiares), esse estado DECLARADO é autoritativo e manda sobre o SOG;
+    sem ele, cai-se no fallback antigo por SOG. Devolve "entrada" | "saida" |
+    "em_porto" | "indeterminado". Lê os limiares em regras["ais"] (regra de
+    ouro: nenhum número aqui — os `.get(..., defeito)` abaixo são só
+    robustez defensiva caso falte a secção, os valores reais vêm sempre de
+    regras.toml). Função pura, testável offline."""
     cfg = regras.get("ais", {})
     raio = cfg.get("raio_movimento_mn")
     dist = navio.get("distancia_mn")
     if raio is not None and dist is not None and dist > raio:
         return "indeterminado"
+    nav_status = navio.get("nav_status")
+    if nav_status is not None and nav_status in AIS_STATUS_PARADO:
+        return "em_porto"   # estado declarado pelo navio, autoritativo
     sog = navio.get("sog")
     if sog is None:
         return "indeterminado"
     sog_parado = cfg.get("sog_parado_kn", 0.5)
     sog_navegar = cfg.get("sog_a_navegar_kn", 3.0)
     if sog < sog_parado:
-        return "em_porto"
+        return "em_porto"   # fallback: sem status fiável, decide por SOG
     cog = navio.get("cog")
     lat, lon = navio.get("lat"), navio.get("lon")
-    if (sog >= sog_navegar and cog is not None
+    a_navegar = nav_status in AIS_STATUS_A_NAVEGAR or sog >= sog_navegar
+    if (a_navegar and cog is not None
             and lat is not None and lon is not None):
         marcacao = _bearing_graus(lat, lon, porto["latitude"], porto["longitude"])
         diferenca = abs(cog - marcacao) % 360
@@ -683,10 +697,11 @@ def classificar_movimento(navio: dict, porto: dict, regras: dict) -> str:
 
 def _agregar_ais(mensagens: list[dict], porto: dict) -> list[dict]:
     """Agrega mensagens AIS (PositionReport + ShipStaticData, formato
-    aisstream.io) por MMSI, fundindo posição e ficha estática. Devolve uma
-    lista de navios ordenada por distância a `porto` (entrada do catálogo
-    portos.toml — usa latitude/longitude). Função pura — testável offline
-    com fixtures JSON sintéticas."""
+    aisstream.io) por MMSI, fundindo posição, estado de navegação
+    (NavigationalStatus) e ficha estática. Devolve uma lista de navios
+    ordenada por distância a `porto` (entrada do catálogo portos.toml — usa
+    latitude/longitude). Função pura — testável offline com fixtures JSON
+    sintéticas."""
     navios: dict = {}
     for msg in mensagens:
         meta = msg.get("MetaData") or {}
@@ -707,6 +722,10 @@ def _agregar_ais(mensagens: list[dict], porto: dict) -> list[dict]:
                                  ("Latitude", "lat"), ("Longitude", "lon")):
                 if corpo.get(campo) is not None:
                     nv[chave] = corpo[campo]
+            # 0 é um NavigationalStatus válido ("under way using engine") —
+            # testar `is not None`, não truthiness, para não o perder.
+            if corpo.get("NavigationalStatus") is not None:
+                nv["nav_status"] = corpo["NavigationalStatus"]
         elif tipo_msg == "ShipStaticData":
             if (corpo.get("Name") or "").strip():
                 nv["nome"] = corpo["Name"].strip()
@@ -1500,8 +1519,10 @@ def gerar_html_porto(porto, previsao, avaliacoes, navios, apl, regras,
                          f"{plural} moving nearby (direction unclear).</p>")
         hhmm_mov = ais["quando"].strftime("%H:%M")
         cab_mov = (f"<p class='sub-ais'>AIS snapshot at {hhmm_mov}, "
-                  f"~{ais.get('segundos', 60)} s window. Direction inferred "
-                  "from instantaneous heading — snapshot, not tracking.</p>")
+                  f"~{ais.get('segundos', 60)} s window. In port/anchored "
+                  "uses the vessel's declared status when available; "
+                  "arriving/departing is still inferred from instantaneous "
+                  "heading — snapshot, not tracking.</p>")
         corpo_mov = (blocos_mov + nota_indet) or (
             "<p class='vazio'>No AIS vessels captured in this listening "
             "window.</p>")

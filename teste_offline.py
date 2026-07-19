@@ -385,6 +385,29 @@ def teste_classificar_movimento():
         perpendicular, PORTO_MOVIMENTO, regras_tol30) == "indeterminado"
 
 
+def teste_classificar_movimento_nav_status():
+    """NavigationalStatus (autoritativo) manda sobre o SOG quando presente;
+    sem nav_status, o comportamento antigo (fallback por SOG) mantém-se
+    inalterado — compatibilidade."""
+    # nav_status "moored" (1) com SOG alto (ex.: ruído/erro de sensor) ->
+    # em_porto de qualquer forma — o estado declarado manda sobre o SOG
+    fundeado_sog_alto = {"lat": 51.98, "lon": 4.05, "sog": 15.0, "cog": 90.0,
+                         "nav_status": 1, "distancia_mn": 1.0}
+    assert jb.classificar_movimento(
+        fundeado_sog_alto, PORTO_MOVIMENTO, REGRAS_AIS_TESTE) == "em_porto"
+    # nav_status 0 ("under way using engine", valor válido) + COG para o
+    # porto -> entrada, mesmo com SOG abaixo do limiar "a navegar"
+    entrando_status0 = {"lat": 51.90, "lon": 4.05, "sog": 1.0, "cog": 0.0,
+                        "nav_status": 0, "distancia_mn": 5.0}
+    assert jb.classificar_movimento(
+        entrando_status0, PORTO_MOVIMENTO, REGRAS_AIS_TESTE) == "entrada"
+    # sem nav_status: repete o comportamento antigo por SOG (compatibilidade)
+    sem_status = {"lat": 51.90, "lon": 4.05, "sog": 10.0, "cog": 0.0,
+                 "distancia_mn": 5.0}
+    assert jb.classificar_movimento(
+        sem_status, PORTO_MOVIMENTO, REGRAS_AIS_TESTE) == "entrada"
+
+
 def teste_agregar_ais():
     porto = PORTO_TESTE
     mensagens = [
@@ -413,6 +436,32 @@ def teste_agregar_ais():
     assert alfa["imo"] == "9638147" and alfa["destino"] == "LISBOA"
     assert alfa["loa"] == 150 and alfa["boca"] == 30
     assert alfa["distancia_mn"] is not None
+
+
+def teste_agregar_ais_nav_status():
+    """NavigationalStatus (PositionReport) é captado em nav_status; 0 é um
+    valor válido ("under way using engine") e tem de ser distinguido de
+    ausência de dado — testa explicitamente o caso zero (não pode cair por
+    truthiness)."""
+    porto = PORTO_TESTE
+    mensagens = [
+        {"MessageType": "PositionReport",
+         "MetaData": {"MMSI": 111, "ShipName": "MOORED",
+                      "latitude": 38.62, "longitude": -9.40},
+         "Message": {"PositionReport": {"Sog": 0.2, "Cog": 45.0,
+                                        "Latitude": 38.62, "Longitude": -9.40,
+                                        "NavigationalStatus": 5}}},
+        {"MessageType": "PositionReport",
+         "MetaData": {"MMSI": 222, "ShipName": "UNDERWAY",
+                      "latitude": 38.90, "longitude": -8.90},
+         "Message": {"PositionReport": {"Sog": 12.0, "Cog": 90.0,
+                                        "Latitude": 38.90, "Longitude": -8.90,
+                                        "NavigationalStatus": 0}}},
+    ]
+    navios = jb._agregar_ais(mensagens, porto)
+    por_mmsi = {n["mmsi"]: n for n in navios}
+    assert por_mmsi[111]["nav_status"] == 5
+    assert por_mmsi[222]["nav_status"] == 0   # 0 é válido, não "em falta"
 
 
 def teste_html_ais_ativo():
@@ -640,7 +689,8 @@ TESTES = [teste_avaliar_hora_basico, teste_setor_circular, teste_ukc,
           teste_html_marcadores_navios, teste_html_aviso_apl,
           teste_ws_parse_frame, teste_haversine,
           teste_bbox_contem, teste_bearing, teste_classificar_movimento,
-          teste_agregar_ais,
+          teste_classificar_movimento_nav_status,
+          teste_agregar_ais, teste_agregar_ais_nav_status,
           teste_html_ais_ativo, teste_html_ais_inativo, teste_fusao_apl_ais,
           teste_html_movimentos_ais,
           teste_carregar_portos, teste_carregar_portos_bbox_derivada,

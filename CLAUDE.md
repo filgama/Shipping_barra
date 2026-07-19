@@ -148,7 +148,13 @@ barra em texto ou código — se falta um dado, marcar `PLACEHOLDER`.
   `classificar_movimento` (função pura) classifica cada navio como
   entrada/saída/em_porto/indeterminado a partir de SOG/COG e da marcação
   instantânea para o porto (`_bearing_graus`), com limiares em `[ais]` de
-  `regras.toml` (todos PLACEHOLDER). `recolher_ais` (single-porto) continua
+  `regras.toml` (todos PLACEHOLDER). O `PositionReport` também transmite
+  `NavigationalStatus` — captado em `nv["nav_status"]` por `_agregar_ais` —
+  cuja interpretação (`AIS_STATUS_PARADO = {1, 5}` at anchor/moored;
+  `AIS_STATUS_A_NAVEGAR = {0, 8}` under way) é semântica fixa do standard
+  AIS, não um limiar, e por isso vive como constante no código, não em
+  `regras.toml`; quando presente, é o sinal AUTORITATIVO para "em
+  porto/fundeado" e manda sobre o SOG. `recolher_ais` (single-porto) continua
   a existir, mas `main` já só chama `recolher_ais_global`. Nunca lança
   exceção — falhas (sem chave, rede, handshake) viram o MESMO `erro` no
   dict de cada porto e uma nota/aviso discreto no painel, nunca crash.
@@ -263,11 +269,31 @@ HTML; o CI corre-o antes de publicar.
 - [ ] As `[notas_regulamentares]` são específicas de Lisboa mas aparecem em
       todos os portos (assinaladas como tal) — notas por porto são trabalho
       futuro.
-- [ ] `classificar_movimento` infere direção (entrada/saída) de um rumo
-      INSTANTÂNEO — um navio a manobrar, a fundear ou de passagem pode ficar
-      mal classificado; é snapshot, não tracking. Os limiares `[ais]`
-      (`sog_parado_kn`, `sog_a_navegar_kn`, `cog_tolerancia_graus`,
-      `raio_movimento_mn`) são PLACEHOLDER globais, por validar com piloto.
+- [x] ~~"Em porto/fundeado" decidido só por SOG (adivinhado)~~ — resolvido:
+      `classificar_movimento` usa agora `NavigationalStatus` do
+      `PositionReport` (`AIS_STATUS_PARADO = {1, 5}` — at anchor/moored)
+      como sinal AUTORITATIVO quando o navio o transmite; SOG < `sog_parado_kn`
+      continua como fallback só quando não há status fiável. Códigos
+      NavigationalStatus são semântica fixa do standard AIS (como opcodes
+      WebSocket), não limiares — vivem no código (`AIS_STATUS_PARADO`/
+      `AIS_STATUS_A_NAVEGAR`, junto a `MARGEM_BBOX_GRAUS`).
+- [ ] `classificar_movimento` continua a inferir a DIREÇÃO (entrada/saída) de
+      um rumo INSTANTÂNEO (COG) — um navio a manobrar ou de passagem pode
+      ficar mal classificado; é snapshot, não tracking, e isto não mudou com
+      o NavigationalStatus (que só melhora o "em porto/fundeado"). Os
+      limiares `[ais]` (`sog_parado_kn`, `sog_a_navegar_kn`,
+      `cog_tolerancia_graus`, `raio_movimento_mn`) continuam PLACEHOLDER
+      globais, por validar com piloto.
+- [ ] O AIS (recolha global e a secção "Live movements") depende da variável
+      `AISSTREAM_KEY`; sem ela, degrada para "AIS inactive" em todos os
+      portos (testado offline com fixtures). O CI já está ligado ao secret
+      `secrets.AISSTREAM_KEY` (ver workflow). A camada de TRANSPORTE já foi
+      validada contra o endpoint real `wss://stream.aisstream.io/v0/stream`
+      em 2026-07-19 (DNS + TCP + TLS + upgrade WebSocket 101, via o próprio
+      `_ws_handshake`, sem enviar credenciais). O que falta validar é a
+      RECEÇÃO de dados reais (mensagens, volume, latência, cobertura das
+      caixas), que exige o segredo definido em produção — não é validável
+      offline nem sem chave.
 - [ ] `ais_bbox` derivado por `MARGEM_BBOX_GRAUS` (±0,25°, ~15 NM) pode
       apanhar portos vizinhos próximos ou falhar bacias afastadas da
       coordenada de aproximação — aproximação, mesma dívida das próprias
