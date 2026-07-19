@@ -24,9 +24,12 @@ USO:
     python janelas_barra.py --horas 96     # horizonte da previsão (defeito 72)
     python janelas_barra.py --sem-ais      # saltar snapshot AIS (aisstream.io)
 
-AIS em direto (secção "No estuário agora"): requer a variável de ambiente
-AISSTREAM_KEY (chave grátis em aisstream.io); sem ela a secção degrada com
-uma nota discreta, sem crash.
+AIS em direto (aisstream.io, uma única ligação global multi-porto — ver
+recolher_ais_global): alimenta a secção "Live movements" (entrada/saída/em
+porto, classificados por rumo) em TODOS os portos, e a secção "Live AIS
+snapshot" (lista plana) em Lisboa. Requer a variável de ambiente
+AISSTREAM_KEY (chave grátis em aisstream.io); sem ela as secções degradam
+com uma nota discreta, sem crash.
 
 Ver CLAUDE.md para arquitetura e convenções. AVISO: ferramenta informativa;
 não substitui JUP, VTS, Capitania nem o juízo do piloto.
@@ -53,6 +56,8 @@ from pathlib import Path
 
 RAIZ = Path(__file__).parent
 SAIDA = RAIZ / "index.html"
+
+MARGEM_BBOX_GRAUS = 0.25  # ~15 NM; caixa AIS por defeito à volta da coordenada de aproximação (aproximada, como as próprias coordenadas — NÃO é limiar de decisão)
 
 # API JSON do portal APL (Liferay). Serviços descobertos no JS público das
 # páginas "Previsão de chegadas/partidas"; datas em YYYY-MM-DD.
@@ -110,7 +115,13 @@ def carregar_regras() -> dict:
 
 def carregar_portos() -> list[dict]:
     """Lê portos.toml e valida o catálogo. Campos obrigatórios por porto:
-    slug, nome, pais, bandeira, latitude, longitude. Slugs únicos."""
+    slug, nome, pais, bandeira, latitude, longitude. Slugs únicos.
+    Todo porto sem `ais_bbox` explícito no catálogo recebe uma caixa
+    derivada de ±MARGEM_BBOX_GRAUS em torno da coordenada de aproximação
+    (formato aisstream: [[[lat_min,lon_min],[lat_max,lon_max]]]) — geometria
+    de recolha aproximada, não limiar de decisão. `ais_bbox_derivada`
+    assinala essa origem (False quando o catálogo já trazia a caixa, como
+    Lisboa)."""
     with open(RAIZ / "portos.toml", "rb") as f:
         dados = tomllib.load(f)
     portos = dados.get("porto", [])
@@ -126,6 +137,13 @@ def carregar_portos() -> list[dict]:
         if p["slug"] in vistos:
             raise ValueError(f"slug duplicado em portos.toml: {p['slug']}")
         vistos.add(p["slug"])
+        if "ais_bbox" in p:
+            p["ais_bbox_derivada"] = False
+        else:
+            lat, lon = p["latitude"], p["longitude"]
+            p["ais_bbox"] = [[[lat - MARGEM_BBOX_GRAUS, lon - MARGEM_BBOX_GRAUS],
+                             [lat + MARGEM_BBOX_GRAUS, lon + MARGEM_BBOX_GRAUS]]]
+            p["ais_bbox_derivada"] = True
     return portos
 
 
@@ -460,9 +478,11 @@ def cardeal_seta(graus) -> tuple[str, str]:
 
 AIS_URL = "wss://stream.aisstream.io/v0/stream"
 # A caixa geográfica de subscrição já não é uma constante fixa da Barra Sul:
-# vem de porto["ais_bbox"] (catálogo portos.toml, campo opcional — só
-# Lisboa a tem por agora). Filtro TÉCNICO de subscrição (não é um limiar de
-# decisão náutica), no mesmo espírito de JANELA_PORTO_DIAS acima.
+# vem de porto["ais_bbox"] (catálogo portos.toml — explícito para Lisboa,
+# derivado por carregar_portos/MARGEM_BBOX_GRAUS para os restantes).
+# recolher_ais_global concatena as caixas de todos os portos numa única
+# subscrição. Filtro TÉCNICO de subscrição (não é um limiar de decisão
+# náutica), no mesmo espírito de JANELA_PORTO_DIAS acima.
 _WS_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
 
@@ -602,6 +622,65 @@ def _haversine_mn(lat1, lon1, lat2, lon2) -> float:
     return 2 * r * math.asin(math.sqrt(a)) / 1852.0
 
 
+def _bbox_contem(bbox, lat, lon) -> bool:
+    """True se (lat, lon) cai em alguma caixa de `bbox` (formato aisstream:
+    lista de [[lat_min,lon_min],[lat_max,lon_max]]). Função pura, geometria
+    de teste ponto-em-caixa — não é limiar de decisão."""
+    for caixa in bbox:
+        (lat_min, lon_min), (lat_max, lon_max) = caixa
+        if lat_min <= lat <= lat_max and lon_min <= lon <= lon_max:
+            return True
+    return False
+
+
+def _bearing_graus(lat1, lon1, lat2, lon2) -> float:
+    """Marcação inicial (rumo ortodrómico) de (lat1,lon1) para (lat2,lon2),
+    em graus [0,360). Fórmula standard (atan2); geometria, não é limiar de
+    decisão."""
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dl = math.radians(lon2 - lon1)
+    x = math.sin(dl) * math.cos(p2)
+    y = math.cos(p1) * math.sin(p2) - math.sin(p1) * math.cos(p2) * math.cos(dl)
+    return math.degrees(math.atan2(x, y)) % 360
+
+
+def classificar_movimento(navio: dict, porto: dict, regras: dict) -> str:
+    """Classifica o movimento aparente de um navio a partir de um snapshot
+    AIS instantâneo (SOG/COG) — heurística grosseira, NÃO tracking: um navio
+    a manobrar ou a fundear pode ficar mal classificado numa única leitura.
+    Devolve "entrada" | "saida" | "em_porto" | "indeterminado". Lê os
+    limiares em regras["ais"] (regra de ouro: nenhum número aqui — os
+    `.get(..., defeito)` abaixo são só robustez defensiva caso falte a
+    secção, os valores reais vêm sempre de regras.toml). Função pura,
+    testável offline."""
+    cfg = regras.get("ais", {})
+    raio = cfg.get("raio_movimento_mn")
+    dist = navio.get("distancia_mn")
+    if raio is not None and dist is not None and dist > raio:
+        return "indeterminado"
+    sog = navio.get("sog")
+    if sog is None:
+        return "indeterminado"
+    sog_parado = cfg.get("sog_parado_kn", 0.5)
+    sog_navegar = cfg.get("sog_a_navegar_kn", 3.0)
+    if sog < sog_parado:
+        return "em_porto"
+    cog = navio.get("cog")
+    lat, lon = navio.get("lat"), navio.get("lon")
+    if (sog >= sog_navegar and cog is not None
+            and lat is not None and lon is not None):
+        marcacao = _bearing_graus(lat, lon, porto["latitude"], porto["longitude"])
+        diferenca = abs(cog - marcacao) % 360
+        if diferenca > 180:
+            diferenca = 360 - diferenca
+        tolerancia = cfg.get("cog_tolerancia_graus", 90)
+        if diferenca <= tolerancia:
+            return "entrada"
+        if diferenca >= 180 - tolerancia:
+            return "saida"
+    return "indeterminado"
+
+
 def _agregar_ais(mensagens: list[dict], porto: dict) -> list[dict]:
     """Agrega mensagens AIS (PositionReport + ShipStaticData, formato
     aisstream.io) por MMSI, fundindo posição e ficha estática. Devolve uma
@@ -680,6 +759,60 @@ def recolher_ais(chave: str, porto: dict, segundos: int = 60) -> dict:
     except Exception as exc:
         return {"navios": [], "erro": str(exc), "quando": quando,
                "segundos": segundos}
+
+
+def _msg_em_bbox(msg: dict, bbox) -> bool:
+    """Posição de uma mensagem AIS bruta (MetaData, com fallback ao corpo
+    PositionReport) dentro de alguma caixa de `bbox` — usado só para
+    repartir um snapshot global por porto em recolher_ais_global. Sem
+    posição reconhecível, a mensagem não é atribuída a nenhum porto."""
+    meta = msg.get("MetaData") or {}
+    lat, lon = meta.get("latitude"), meta.get("longitude")
+    if lat is None or lon is None:
+        corpo = (msg.get("Message") or {}).get(msg.get("MessageType")) or {}
+        lat = corpo.get("Latitude", lat)
+        lon = corpo.get("Longitude", lon)
+    if lat is None or lon is None:
+        return False
+    return _bbox_contem(bbox, lat, lon)
+
+
+def recolher_ais_global(chave: str, portos: list[dict], segundos: int = 75) -> dict:
+    """Uma ÚNICA ligação aisstream.io para TODOS os `portos` (cada um já com
+    `ais_bbox` — ver carregar_portos), em vez de uma ligação por porto: 50
+    janelas sequenciais de ~60 s não cabem no ciclo de 30 min do CI, mas uma
+    janela com todas as caixas cabe (BoundingBoxes aceita uma lista).
+    Escuta `segundos`, reparte as mensagens por porto (`_msg_em_bbox`) e
+    agrega cada grupo com `_agregar_ais`. Devolve
+    {slug: {"navios": [...], "erro": None, "quando": dt, "segundos": n}}.
+    Nunca lança exceção: falha global (rede, handshake, chave inválida)
+    devolve o MESMO erro para todos os portos, para o painel degradar com
+    aviso em vez de crashar (mesmo contrato de recolher_ais)."""
+    quando = datetime.now()
+    try:
+        caixas = []
+        for p in portos:
+            caixas.extend(p.get("ais_bbox") or [])
+        subscricao = {"APIKey": chave, "BoundingBoxes": caixas,
+                      "FilterMessageTypes": ["PositionReport", "ShipStaticData"]}
+        brutos = _ws_recv_json(AIS_URL, subscricao, float(segundos))
+        mensagens = []
+        for b in brutos:
+            try:
+                mensagens.append(json.loads(b.decode("utf-8")))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                continue
+        out = {}
+        for p in portos:
+            bbox_p = p.get("ais_bbox") or []
+            mensagens_p = [m for m in mensagens if _msg_em_bbox(m, bbox_p)]
+            navios = _agregar_ais(mensagens_p, p)
+            out[p["slug"]] = {"navios": navios, "erro": None, "quando": quando,
+                              "segundos": segundos}
+        return out
+    except Exception as exc:
+        return {p["slug"]: {"navios": [], "erro": str(exc), "quando": quando,
+                            "segundos": segundos} for p in portos}
 
 
 def cardeal_seta_rumo(graus) -> tuple[str, str]:
@@ -982,10 +1115,18 @@ def gerar_html_porto(porto, previsao, avaliacoes, navios, apl, regras,
                      ais=None) -> str:
     """Página de um porto (ports/<slug>.html), em inglês. As secções APL
     (Arrivals/Departures/In port) só aparecem em portos com `apl = true`
-    no catálogo; a secção AIS só em portos com `ais_bbox`."""
+    no catálogo. A secção "Live movements (AIS-derived)" (entrada/saída/em
+    porto, classificados a partir do AIS) aparece em qualquer porto com
+    `ais_bbox` — desde carregar_portos, isso é todos. A secção "Live AIS
+    snapshot" (lista plana, sem classificação) é um artefacto anterior a
+    esta funcionalidade e continua reservada a portos com `ais_bbox`
+    EXPLÍCITO no catálogo (por agora, só Lisboa) — para os restantes, a
+    caixa é derivada (`ais_bbox_derivada`) e a listagem plana redundaria
+    com a secção de movimentos."""
     e = html.escape
     tem_apl = bool(porto.get("apl"))
     tem_ais = bool(porto.get("ais_bbox"))
+    tem_ais_legado = tem_ais and not porto.get("ais_bbox_derivada", False)
     agora = datetime.now(timezone.utc).astimezone().strftime("%d/%m/%Y %H:%M")
 
     # --- AIS em direto (aisstream.io): índices para fusão com os cartões APL
@@ -1299,6 +1440,73 @@ def gerar_html_porto(porto, previsao, avaliacoes, navios, apl, regras,
                                 "<p class='vazio'>No AIS vessels captured "
                                 "in this listening window.</p>")
 
+    # --- movimentos AIS (entrada/saída/em porto) — todos os portos com AIS -
+    # Mesma fonte que a secção acima, classificada por classificar_movimento
+    # (rumo instantâneo, snapshot, não tracking). Degrada com o mesmo padrão
+    # (ais is None / ais["erro"]) da secção "Live AIS snapshot".
+    def _cartao_movimento(nv_ais: dict) -> str:
+        _, seta = cardeal_seta_rumo(nv_ais.get("cog"))
+        d, sog = nv_ais.get("distancia_mn"), nv_ais.get("sog")
+        dist_txt = (f"{d:.1f} NM off the port"
+                    if d is not None else "position unknown")
+        sog_txt = f"SOG {sog:.1f} kn {seta}" if sog is not None else ""
+        chips = []
+        if nv_ais.get("destino"):
+            chips.append(f"<span class='chip'>bound for {e(nv_ais['destino'])}</span>")
+        if nv_ais.get("loa") and nv_ais.get("boca"):
+            chips.append(f"<span class='chip'>{nv_ais['loa']:.0f}×"
+                         f"{nv_ais['boca']:.0f} m</span>")
+        if nv_ais.get("calado"):
+            chips.append(f"<span class='chip'>draught {nv_ais['calado']:g} m</span>")
+        chips_html_mov = (f"<div class='chips'>{''.join(chips)}</div>"
+                          if chips else "")
+        return (f"<div class='navio'><span class='farol' "
+                f"style='background:#3B7EA1' aria-hidden='true'></span>"
+                f"<div class='navio-corpo'><div class='nnome-linha'>"
+                f"<a class='nnome' href=\"{e(link_marinetraffic(nv_ais['nome'], nv_ais.get('imo')))}\" "
+                f"target='_blank' rel='noopener'>{e(nv_ais['nome'])}</a></div>"
+                f"<div class='nmeta'>{e(dist_txt)}"
+                f"{' · ' + e(sog_txt) if sog_txt else ''}</div>"
+                f"{chips_html_mov}</div></div>")
+
+    def _bloco_movimento(titulo: str, lista: list[dict]) -> str:
+        if not lista:
+            return ""
+        return (f"<h3 class='mov-subtitulo'>{e(titulo)} ({len(lista)})</h3>"
+                + "".join(_cartao_movimento(n) for n in lista))
+
+    if ais is None:
+        seccao_movimentos = ("<p class='vazio'>AIS inactive (no AISSTREAM_KEY "
+                             "configured).</p>")
+    elif ais.get("erro"):
+        seccao_movimentos = (f"<div class='aviso-apl' role='note'>⚠ AIS capture "
+                             f"failed this run: {e(ais['erro'])}.</div>")
+    else:
+        grupos_mov = {"entrada": [], "saida": [], "em_porto": []}
+        n_indeterminado = 0
+        for nv_ais in ais["navios"]:
+            direcao = classificar_movimento(nv_ais, porto, regras)
+            if direcao in grupos_mov:
+                grupos_mov[direcao].append(nv_ais)
+            else:
+                n_indeterminado += 1
+        blocos_mov = (_bloco_movimento("Arriving", grupos_mov["entrada"]) +
+                     _bloco_movimento("Departing", grupos_mov["saida"]) +
+                     _bloco_movimento("In port / anchored", grupos_mov["em_porto"]))
+        nota_indet = ""
+        if n_indeterminado:
+            plural = "s" if n_indeterminado != 1 else ""
+            nota_indet = (f"<p class='vazio'>{n_indeterminado} other vessel"
+                         f"{plural} moving nearby (direction unclear).</p>")
+        hhmm_mov = ais["quando"].strftime("%H:%M")
+        cab_mov = (f"<p class='sub-ais'>AIS snapshot at {hhmm_mov}, "
+                  f"~{ais.get('segundos', 60)} s window. Direction inferred "
+                  "from instantaneous heading — snapshot, not tracking.</p>")
+        corpo_mov = (blocos_mov + nota_indet) or (
+            "<p class='vazio'>No AIS vessels captured in this listening "
+            "window.</p>")
+        seccao_movimentos = cab_mov + corpo_mov
+
     resumo_html = (f"<p id='resumo-agora' class='resumo-agora'>{e(resumo_agora)}</p>"
                   if resumo_agora else "")
 
@@ -1319,11 +1527,19 @@ def gerar_html_porto(porto, previsao, avaliacoes, navios, apl, regras,
 </section>
 """
     seccao_ais_html = ""
-    if tem_ais:
+    if tem_ais_legado:
         seccao_ais_html = f"""
 <section aria-labelledby="ais-titulo">
  <h2 id="ais-titulo">Live AIS snapshot</h2>
  {seccao_ais}
+</section>
+"""
+    seccao_mov_html = ""
+    if tem_ais:
+        seccao_mov_html = f"""
+<section aria-labelledby="mov-titulo">
+ <h2 id="mov-titulo">Live movements (AIS-derived)</h2>
+ {seccao_movimentos}
 </section>
 """
 
@@ -1451,6 +1667,10 @@ def gerar_html_porto(porto, previsao, avaliacoes, navios, apl, regras,
  ul {{ margin:6px 0 0; padding-left:18px; font-size:12px; }}
  .vazio {{ color:#5C6E7C; font-style:italic; font-size:13px; }}
  .sub-ais {{ font-size:11px; color:#5C6E7C; margin:0 0 6px; }}
+ .mov-subtitulo {{ font-size:12px; font-weight:700; color:#5C6E7C;
+                   margin:10px 0 4px; text-transform:uppercase;
+                   letter-spacing:.02em; }}
+ .mov-subtitulo:first-child {{ margin-top:0; }}
  .nota-loa {{ font-size:11px; color:var(--mag); margin:4px 0 0; }}
  footer {{ font-size:11px; color:#5C6E7C; padding:0 16px 20px;
           max-width:720px; margin:0 auto; }}
@@ -1511,7 +1731,7 @@ any specific port.</div>
  </div>
  {seccao_mares}
 </section>
-{seccoes_apl}{seccao_ais_html}
+{seccoes_apl}{seccao_ais_html}{seccao_mov_html}
 <section aria-labelledby="regras-titulo">
  <h2 id="regras-titulo">Rules in force</h2>
  <div class="scroll">
@@ -1710,6 +1930,24 @@ def main() -> None:
     if not chave_ais:
         print("[AIS] sem AISSTREAM_KEY — secções AIS inativas")
 
+    # Recolha AIS GLOBAL: uma única ligação aisstream.io para todos os
+    # `portos` desta corrida (cada um já com ais_bbox — ver carregar_portos),
+    # em vez de uma ligação por porto (não caberia no ciclo do CI). Ver
+    # docs/2026-07-19-movimentos-ais-todos-portos-design.md.
+    ais_por_slug: dict = {}
+    if chave_ais and not args.sem_ais:
+        print(f"[AIS] a ligar a aisstream.io para {len(portos)} porto(s) "
+              "(~75 s) …")
+        ais_por_slug = recolher_ais_global(chave_ais, portos)
+        erro_global = next((v["erro"] for v in ais_por_slug.values()
+                            if v["erro"]), None)
+        if erro_global:
+            print(f"[AIS] erro na recolha global: {erro_global}")
+        else:
+            total_navios = sum(len(v["navios"]) for v in ais_por_slug.values())
+            print(f"[AIS] {total_navios} navios (agregados) em "
+                  f"{len(ais_por_slug)} porto(s)")
+
     (RAIZ / "ports").mkdir(exist_ok=True)
     agora_dt = datetime.now()
     resultados = []
@@ -1725,10 +1963,8 @@ def main() -> None:
                 navios = extrair_navios(apl)
                 print(f"[{slug}] {len(navios)} navios da API APL")
 
-            ais = None
-            if porto.get("ais_bbox") and chave_ais and not args.sem_ais:
-                print(f"[{slug}] AIS: a ligar a aisstream.io (~60 s) …")
-                ais = recolher_ais(chave_ais, porto)
+            ais = ais_por_slug.get(slug)
+            if ais is not None:
                 if ais["erro"]:
                     print(f"[{slug}] AIS erro: {ais['erro']}")
                 else:

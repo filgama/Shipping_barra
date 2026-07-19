@@ -138,6 +138,17 @@ fonte = "PLACEHOLDER — citado no doc de análise como regra do Regulamento de 
 loa_atracacao_estofa = 150.0
 fonte = "PLACEHOLDER — citado no doc de análise como regra APL, artigo por confirmar"
 
+[ais]
+# Classificação de movimento (entrada/saída/em porto) a partir do snapshot
+# AIS global (recolher_ais_global + classificar_movimento) — heurística de
+# rumo instantâneo, não tracking. Ver
+# docs/2026-07-19-movimentos-ais-todos-portos-design.md.
+sog_parado_kn = 0.5        # abaixo disto: parado/fundeado/atracado
+sog_a_navegar_kn = 3.0     # acima disto: considera-se a navegar
+cog_tolerancia_graus = 90  # meia-abertura do cone COG vs marcação ao porto
+raio_movimento_mn = 20     # só classifica navios a menos disto do porto
+fonte = "PLACEHOLDER — heurística de snapshot AIS, validar com piloto/prática"
+
 [notas_regulamentares]
 # Informação qualitativa (não numérica) mostrada no painel, com fonte pública.
 # Notas específicas de LISBOA (herdadas da primeira versão do painel);

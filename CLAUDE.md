@@ -21,7 +21,18 @@ uma página de detalhe por porto (`ports/<slug>.html`). Fontes:
    cada hora como **verde / âmbar / vermelho** e avalia UKC por navio
 4. **APL** (portodelisboa.pt) — chegadas (ETA), navios em porto, partidas
    (ETD) — **só para Lisboa** (`apl = true` no catálogo); os outros portos
-   não têm fonte equivalente de escalas
+   não têm fonte equivalente de escalas (não existe API pública equivalente
+   à da APL para outros portos europeus — ver Roadmap #7)
+5. **aisstream.io** (AIS em direto) — desde 2026-07-19
+   (`docs/2026-07-19-movimentos-ais-todos-portos-design.md`), uma ÚNICA
+   ligação global (`recolher_ais_global`) cobre TODOS os portos do
+   catálogo (caixa explícita para Lisboa, derivada para os restantes — ver
+   `carregar_portos`) e alimenta a secção "Live movements (AIS-derived)"
+   — entrada/saída/em porto/indeterminado, classificados por rumo
+   (`classificar_movimento`) — em todos os portos. É a leitura honesta de
+   "entradas e saídas em todos os portos" que as fontes gratuitas do
+   projeto permitem: um snapshot de movimentos em direto, não um horário
+   agendado. Lisboa mantém, por cima, o ETA/ETD autoritativo da APL.
 
 Publicação: GitHub Actions corre o script a cada 30 min e publica em
 GitHub Pages (`index.html` + `ports/`). O utilizador final abre um link no
@@ -37,9 +48,11 @@ telemóvel.
   genéricos e não validados por porto.
 - Não é um clone do MarineTraffic. O valor está no **cruzamento** de fontes e
   nas **regras codificadas**, não no tracking.
-- AIS em direto (secção "No estuário agora") é um snapshot informativo de
-  ~60 s via aisstream.io, não tracking contínuo — degrada em silêncio sem a
-  chave `AISSTREAM_KEY` (ver "Fontes de dados" e Roadmap item 3).
+- AIS em direto (secção "Live movements (AIS-derived)", e "Live AIS
+  snapshot" em Lisboa) é um snapshot informativo de ~75 s via aisstream.io,
+  não tracking contínuo — a direção (entrada/saída) é inferida de um rumo
+  INSTANTÂNEO, não de trajetória; degrada em silêncio sem a chave
+  `AISSTREAM_KEY` (ver "Fontes de dados" e Roadmap item 3).
 
 ## Estrutura
 
@@ -55,7 +68,8 @@ janelas-barra/
 ├── docs/                     # documentos de apoio (análise, specs/plans de features)
 │   ├── analise_manobrabilidade_lisboa_v2.md
 │   ├── 2026-07-19-expansao-europa-design.md
-│   └── 2026-07-19-expansao-europa-plan.md
+│   ├── 2026-07-19-expansao-europa-plan.md
+│   └── 2026-07-19-movimentos-ais-todos-portos-design.md
 ├── .github/workflows/atualizar.yml
 ├── README.md                 # setup para humanos
 └── CLAUDE.md                 # este ficheiro
@@ -63,9 +77,12 @@ janelas-barra/
 
 Fluxo em `janelas_barra.py` (por ordem no ficheiro, funções auxiliares
 privadas `_get_json`/`_momento`/`cardeal_seta` omitidas):
-`carregar_regras`/`carregar_portos` → por porto: `recolher_meteomar(porto)`
-→ `avaliar_hora`/`avaliar_ukc` → (se `apl`) `recolher_apl` →
-`extrair_navios` → `filtrar_em_porto` → (se `ais_bbox`) `recolher_ais` →
+`carregar_regras`/`carregar_portos` (deriva `ais_bbox` por defeito para
+quem não o tem no catálogo) → UMA VEZ para todos os portos:
+`recolher_ais_global` (se houver `AISSTREAM_KEY`) → por porto:
+`recolher_meteomar(porto)` → `avaliar_hora`/`avaliar_ukc` → (se `apl`)
+`recolher_apl` → `extrair_navios` → `filtrar_em_porto` →
+`classificar_movimento` (por navio AIS, dentro de `gerar_html_porto`) →
 `gerar_svg_mare` → `gerar_html_porto` → `ports/<slug>.html`; no fim,
 `gerar_html_landing` → `index.html`. Tudo em `main`.
 
@@ -112,16 +129,29 @@ barra em texto ou código — se falta um dado, marcar `PLACEHOLDER`.
   página mostra a hora LOCAL do porto (o rodapé di-lo); as ETAs da APL são
   hora de Lisboa, que coincide com a hora local dessa página. A landing usa
   UTC explícito no "Updated at". Sem conversões manuais.
-- **aisstream.io** (AIS em direto, secção "No estuário agora"): WebSocket
+- **aisstream.io** (AIS em direto): WebSocket
   (`wss://stream.aisstream.io/v0/stream`), grátis mediante registo — chave em
   `AISSTREAM_KEY` (env local / secret GitHub). Sem dependências externas: o
   cliente WSS (`_ws_handshake`/`_ws_frame`/`_ws_parse_frame`/`_ws_recv_json`)
-  é implementado à mão com `socket`+`ssl`+`base64`+`hashlib`+`struct`. Cada
-  recolha (`recolher_ais`) subscreve uma bounding box do estuário do Tejo +
-  aproximação à Barra Sul e escuta ~60 s, acumulando `PositionReport` e
-  `ShipStaticData` por MMSI (`_agregar_ais`). Nunca lança exceção — falhas
-  (sem chave, rede, handshake) viram `erro` no dict devolvido e uma nota/
-  aviso discreto no painel, nunca crash.
+  é implementado à mão com `socket`+`ssl`+`base64`+`hashlib`+`struct`. Desde
+  2026-07-19 (`docs/2026-07-19-movimentos-ais-todos-portos-design.md`), a
+  recolha é GLOBAL: `recolher_ais_global` faz UMA ligação com as caixas
+  (`ais_bbox`) de TODOS os portos gerados nesta corrida — concatenadas no
+  `BoundingBoxes` do aisstream —, escuta ~75 s, acumula `PositionReport` e
+  `ShipStaticData` por MMSI (`_agregar_ais`) e reparte as mensagens por
+  porto por teste ponto-em-caixa (`_bbox_contem`/`_msg_em_bbox`); 50 ligações
+  sequenciais de 60 s não cabiam no ciclo de 30 min do CI, uma janela com
+  todas as caixas cabe. `carregar_portos` deriva `ais_bbox` (±
+  `MARGEM_BBOX_GRAUS`, ~15 NM, em torno da coordenada de aproximação) para
+  quem não o tem explícito no catálogo — só Lisboa tem caixa afinada
+  (estuário do Tejo + Barra Sul); `ais_bbox_derivada` assinala a origem.
+  `classificar_movimento` (função pura) classifica cada navio como
+  entrada/saída/em_porto/indeterminado a partir de SOG/COG e da marcação
+  instantânea para o porto (`_bearing_graus`), com limiares em `[ais]` de
+  `regras.toml` (todos PLACEHOLDER). `recolher_ais` (single-porto) continua
+  a existir, mas `main` já só chama `recolher_ais_global`. Nunca lança
+  exceção — falhas (sem chave, rede, handshake) viram o MESMO `erro` no
+  dict de cada porto e uma nota/aviso discreto no painel, nunca crash.
 
 ## Convenções
 
@@ -169,9 +199,12 @@ Teste offline (sem rede): `python teste_offline.py` — fixtures sintéticas
 para `avaliar_hora` (incl. sectores que cruzam o Norte), `avaliar_ukc`,
 `extrair_navios`, `filtrar_em_porto`, `gerar_svg_mare`, `gerar_html`, o
 parser de frames WebSocket (`_ws_parse_frame`), a agregação AIS por MMSI
-(`_agregar_ais`) e a distância haversine. Obrigatório antes de qualquer
-commit que toque no motor de regras, no parser ou no HTML; o CI corre-o
-antes de publicar.
+(`_agregar_ais`), a distância haversine, o teste ponto-em-caixa
+(`_bbox_contem`), a marcação inicial (`_bearing_graus`), a derivação de
+`ais_bbox` por `carregar_portos` e a classificação de movimento
+(`classificar_movimento`, incl. a secção HTML "Live movements"). Obrigatório
+antes de qualquer commit que toque no motor de regras, no parser ou no
+HTML; o CI corre-o antes de publicar.
 
 ## Estado atual e dívidas conhecidas
 
@@ -193,8 +226,21 @@ antes de publicar.
       limiares são PLACEHOLDER (por validar com piloto).
 - [x] Expansão Europa (2026-07-19): catálogo `portos.toml` (~50 portos),
       geração multi-porto (`ports/<slug>.html` + landing), UI em inglês.
-      Lisboa mantém em exclusivo APL + AIS. Ver
+      Lisboa mantinha em exclusivo APL + AIS. Ver
       `docs/2026-07-19-expansao-europa-design.md` e o plano irmão.
+- [x] Movimentos AIS para todos os portos (2026-07-19): `recolher_ais_global`
+      (uma ligação aisstream.io para todos os portos), `ais_bbox` derivado
+      por defeito (`carregar_portos`/`MARGEM_BBOX_GRAUS`) para quem não o
+      tem explícito, `classificar_movimento` (entrada/saída/em_porto/
+      indeterminado por SOG/COG) e secção "Live movements (AIS-derived)" em
+      TODOS os portos. Lisboa mantém APL (ETA/ETD + In port now) e a secção
+      antiga "Live AIS snapshot" por cima. Limiares novos em `[ais]` de
+      `regras.toml`, todos PLACEHOLDER. Ver
+      `docs/2026-07-19-movimentos-ais-todos-portos-design.md`. Isto resolve
+      a leitura do Roadmap #7 que era alcançável com as fontes gratuitas do
+      projeto — ETA/ETD agendado continua só em Lisboa (não há API pública
+      equivalente à da APL para outros portos), mas passam a existir
+      movimentos em direto (snapshot, não agendados) em todos.
 - [ ] UKC mistura referenciais ZH/MSL (ver acima) e ignora squat e resposta
       vertical à ondulação — é UKC estático simplificado (agora com margem
       de ondulação aproximada, também PLACEHOLDER).
@@ -217,6 +263,18 @@ antes de publicar.
 - [ ] As `[notas_regulamentares]` são específicas de Lisboa mas aparecem em
       todos os portos (assinaladas como tal) — notas por porto são trabalho
       futuro.
+- [ ] `classificar_movimento` infere direção (entrada/saída) de um rumo
+      INSTANTÂNEO — um navio a manobrar, a fundear ou de passagem pode ficar
+      mal classificado; é snapshot, não tracking. Os limiares `[ais]`
+      (`sog_parado_kn`, `sog_a_navegar_kn`, `cog_tolerancia_graus`,
+      `raio_movimento_mn`) são PLACEHOLDER globais, por validar com piloto.
+- [ ] `ais_bbox` derivado por `MARGEM_BBOX_GRAUS` (±0,25°, ~15 NM) pode
+      apanhar portos vizinhos próximos ou falhar bacias afastadas da
+      coordenada de aproximação — aproximação, mesma dívida das próprias
+      coordenadas; a refinar com o tempo.
+- [ ] Volume AIS de ~50 caixas numa única janela (~75 s) é best-effort: com
+      tráfego alto, o snapshot fica parcial (aceitável — é o que a janela
+      apanhou, não é enganador, mas não é exaustivo).
 
 ## Roadmap (por ordem de valor)
 
@@ -228,13 +286,21 @@ antes de publicar.
    A curva SVG existe mas continua alimentada pelo modelo.
 3. Sessão com piloto(s): validar/preencher `regras.toml` (e, por porto,
    as futuras overrides); registar cada decisão no campo `fonte`.
-4. `profundidade_zh` e `ais_bbox` para mais portos do catálogo (hoje só
-   Lisboa tem UKC e AIS).
+4. `profundidade_zh` para mais portos do catálogo (hoje só Lisboa tem UKC);
+   `ais_bbox` já cobre todos os portos (derivado — ver dívidas), mas as
+   caixas derivadas por margem fixa ainda são candidatas a afinação manual
+   caso alguma apanhe bacias vizinhas.
 5. Alertas (e-mail/Telegram) quando um navio da lista de Lisboa cai em
    janela vermelha.
 6. Regras por classe de navio (LOA/calado/tipo) em vez de globais.
-7. Fontes de escalas (ETA/ETD) para outros portos, se existirem APIs
-   públicas equivalentes à da APL.
+7. Fontes de escalas (ETA/ETD) AGENDADAS para outros portos: continua sem
+   solução (não existe API pública equivalente à da APL) — ver
+   `docs/2026-07-19-movimentos-ais-todos-portos-design.md` para a decisão
+   tomada em alternativa (movimentos em direto via AIS, item concluído
+   abaixo). Se um porto arranjar uma fonte de ETA/ETD equivalente à da APL
+   (portal próprio com API), integrar como caso especial, tal como Lisboa.
 
 Concluído entretanto: ~~reintegrar snapshot AIS~~ (2026-07-19, aisstream.io,
-secret `AISSTREAM_KEY`).
+secret `AISSTREAM_KEY`); ~~movimentos AIS (entrada/saída/em porto) para
+todos os portos~~ (2026-07-19, `recolher_ais_global` +
+`classificar_movimento` — ver "Estado atual e dívidas conhecidas").

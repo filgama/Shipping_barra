@@ -310,6 +310,81 @@ def teste_haversine():
     assert jb._haversine_mn(38.6, -9.4, 38.6, -9.4) == 0.0
 
 
+def teste_bbox_contem():
+    bbox = [[[38.35, -9.75], [38.95, -8.85]]]
+    assert jb._bbox_contem(bbox, 38.62, -9.38) is True     # dentro
+    assert jb._bbox_contem(bbox, 50.00, 4.00) is False     # fora
+    # bordo da caixa (limites inclusivos)
+    assert jb._bbox_contem(bbox, 38.35, -9.75) is True
+    # várias caixas (formato de recolher_ais_global): basta uma conter
+    multi = bbox + [[[51.73, 3.80], [52.23, 4.30]]]
+    assert jb._bbox_contem(multi, 51.98, 4.05) is True
+    assert jb._bbox_contem(multi, 0.0, 0.0) is False
+
+
+def teste_bearing():
+    # marcação inicial de (1) -> (2); tolerância generosa (geometria esférica)
+    assert abs(jb._bearing_graus(38.0, -9.0, 39.0, -9.0) - 0.0) < 1.0     # N
+    assert abs(jb._bearing_graus(38.0, -9.0, 38.0, -8.0) - 90.0) < 2.0    # E
+    assert abs(jb._bearing_graus(39.0, -9.0, 38.0, -9.0) - 180.0) < 1.0   # S
+    assert abs(jb._bearing_graus(38.0, -8.0, 38.0, -9.0) - 270.0) < 2.0   # W
+
+
+REGRAS_AIS_TESTE = {"ais": {"sog_parado_kn": 0.5, "sog_a_navegar_kn": 3.0,
+                            "cog_tolerancia_graus": 90,
+                            "raio_movimento_mn": 20,
+                            "fonte": "PLACEHOLDER"}}
+PORTO_MOVIMENTO = {"slug": "teste-mov", "nome": "Movport",
+                   "latitude": 51.98, "longitude": 4.05}
+
+
+def teste_classificar_movimento():
+    # navio a sul do porto (mesma longitude), a navegar para norte -> entrada
+    entrando = {"lat": 51.90, "lon": 4.05, "sog": 10.0, "cog": 0.0,
+               "distancia_mn": 5.0}
+    assert jb.classificar_movimento(
+        entrando, PORTO_MOVIMENTO, REGRAS_AIS_TESTE) == "entrada"
+    # mesma posição, rumo oposto (para sul, a afastar-se) -> saida
+    saindo = {"lat": 51.90, "lon": 4.05, "sog": 10.0, "cog": 180.0,
+             "distancia_mn": 5.0}
+    assert jb.classificar_movimento(
+        saindo, PORTO_MOVIMENTO, REGRAS_AIS_TESTE) == "saida"
+    # SOG abaixo do limiar de parado -> em_porto (independente do COG)
+    parado = {"lat": 51.98, "lon": 4.05, "sog": 0.1, "cog": 90.0,
+             "distancia_mn": 1.0}
+    assert jb.classificar_movimento(
+        parado, PORTO_MOVIMENTO, REGRAS_AIS_TESTE) == "em_porto"
+    # fora do raio_movimento_mn -> indeterminado, mesmo a navegar
+    longe = {"lat": 40.00, "lon": 4.05, "sog": 10.0, "cog": 0.0,
+            "distancia_mn": 500.0}
+    assert jb.classificar_movimento(
+        longe, PORTO_MOVIMENTO, REGRAS_AIS_TESTE) == "indeterminado"
+    # sem COG -> indeterminado
+    sem_cog = {"lat": 51.90, "lon": 4.05, "sog": 10.0, "cog": None,
+              "distancia_mn": 5.0}
+    assert jb.classificar_movimento(
+        sem_cog, PORTO_MOVIMENTO, REGRAS_AIS_TESTE) == "indeterminado"
+    # sem SOG -> indeterminado
+    sem_sog = {"lat": 51.90, "lon": 4.05, "sog": None, "cog": 0.0,
+              "distancia_mn": 5.0}
+    assert jb.classificar_movimento(
+        sem_sog, PORTO_MOVIMENTO, REGRAS_AIS_TESTE) == "indeterminado"
+    # SOG entre "parado" e "a navegar" -> indeterminado (nem um nem outro)
+    sog_intermedio = {"lat": 51.90, "lon": 4.05, "sog": 1.5, "cog": 0.0,
+                      "distancia_mn": 5.0}
+    assert jb.classificar_movimento(
+        sog_intermedio, PORTO_MOVIMENTO, REGRAS_AIS_TESTE) == "indeterminado"
+    # com tolerância estreita (30°), um rumo perpendicular ao bearing não
+    # cai nem no cone de entrada nem no de saída -> indeterminado (mostra
+    # que, com a tolerância larga por defeito de regras.toml (90°), isto
+    # não acontece — é a nota do design sobre a heurística)
+    regras_tol30 = {"ais": dict(REGRAS_AIS_TESTE["ais"], cog_tolerancia_graus=30)}
+    perpendicular = {"lat": 51.90, "lon": 4.05, "sog": 10.0, "cog": 90.0,
+                     "distancia_mn": 5.0}
+    assert jb.classificar_movimento(
+        perpendicular, PORTO_MOVIMENTO, regras_tol30) == "indeterminado"
+
+
 def teste_agregar_ais():
     porto = PORTO_TESTE
     mensagens = [
@@ -384,6 +459,46 @@ def teste_fusao_apl_ais():
     assert "AIS: 3.4 NM off the entrance, SOG 12.3 kn" in out
 
 
+def teste_html_movimentos_ais():
+    """gerar_html_porto de um porto SEM apl (ex. Rotterdam), com ais_bbox
+    derivado (como faria carregar_portos para um porto fora de Lisboa),
+    mostra a secção "Live movements (AIS-derived)" com os navios agrupados
+    por direção; sem chave (ais=None) degrada com a nota de inativo; o
+    banner obrigatório continua presente. Como o ais_bbox é derivado, a
+    secção antiga "Live AIS snapshot" (lista plana, só Lisboa) não deve
+    aparecer — evita duplicar a mesma informação em formatos diferentes."""
+    porto_rotterdam = {"slug": "rotterdam", "nome": "Rotterdam", "pais": "NL",
+                       "bandeira": "🇳🇱", "latitude": 51.98, "longitude": 4.05,
+                       "ais_bbox": [[[51.73, 3.80], [52.23, 4.30]]],
+                       "ais_bbox_derivada": True}
+    prev = previsao_fixa()
+    avals = [jb.avaliar_hora(h, REGRAS_AIS_TESTE) for h in prev]
+    ais = {"erro": None, "quando": datetime(2026, 7, 19, 12, 0), "segundos": 75,
+           "navios": [
+               {"mmsi": 1, "nome": "INBOUND", "lat": 51.90, "lon": 4.05,
+                "sog": 10.0, "cog": 0.0, "distancia_mn": 5.0},
+               {"mmsi": 2, "nome": "OUTBOUND", "lat": 51.90, "lon": 4.05,
+                "sog": 10.0, "cog": 180.0, "distancia_mn": 5.0},
+               {"mmsi": 3, "nome": "ANCHORED", "lat": 51.98, "lon": 4.05,
+                "sog": 0.1, "cog": 90.0, "distancia_mn": 1.0},
+           ]}
+    out = jb.gerar_html_porto(porto_rotterdam, prev, avals, [], {},
+                              REGRAS_AIS_TESTE, ais=ais)
+    assert 'id="mov-titulo"' in out and "Live movements (AIS-derived)" in out
+    assert "Arriving (1)" in out and "INBOUND" in out
+    assert "Departing (1)" in out and "OUTBOUND" in out
+    assert "In port / anchored (1)" in out and "ANCHORED" in out
+    assert "5.0 NM off the port" in out
+    assert "Live AIS snapshot" not in out    # ais_bbox derivado, não explícito
+    assert "NOT an operational tool" in out  # banner obrigatório
+
+    # sem chave/coleta (ais=None): degrada com a nota de inativo, sem crash
+    out_inativo = jb.gerar_html_porto(porto_rotterdam, prev, avals, [], {},
+                                      REGRAS_AIS_TESTE, ais=None)
+    assert "AIS inactive" in out_inativo and "AISSTREAM_KEY" in out_inativo
+    assert "NOT an operational tool" in out_inativo
+
+
 def teste_html_porto_sem_apl():
     prev = previsao_fixa()
     avals = [jb.avaliar_hora(h, REGRAS) for h in prev]
@@ -438,6 +553,23 @@ def teste_carregar_portos():
     lisboa = next(p for p in portos if p["slug"] == "lisboa")
     assert lisboa.get("apl") is True and lisboa.get("ais_bbox")
     assert all("latitude" in p and "longitude" in p for p in portos)
+
+
+def teste_carregar_portos_bbox_derivada():
+    """Todo porto sem ais_bbox no catálogo (portos.toml) recebe uma caixa
+    derivada de ±MARGEM_BBOX_GRAUS pela própria carregar_portos; Lisboa,
+    que já traz ais_bbox explícito, mantém a caixa do catálogo intocada."""
+    portos = jb.carregar_portos()
+    lisboa = next(p for p in portos if p["slug"] == "lisboa")
+    assert lisboa["ais_bbox"] == [[[38.35, -9.75], [38.95, -8.85]]]
+    assert lisboa["ais_bbox_derivada"] is False
+
+    rotterdam = next(p for p in portos if p["slug"] == "rotterdam")
+    assert rotterdam["ais_bbox_derivada"] is True
+    lat, lon = rotterdam["latitude"], rotterdam["longitude"]
+    caixa = rotterdam["ais_bbox"][0]
+    m = jb.MARGEM_BBOX_GRAUS
+    assert caixa == [[lat - m, lon - m], [lat + m, lon + m]]
 
 
 def teste_html_landing():
@@ -506,9 +638,13 @@ TESTES = [teste_avaliar_hora_basico, teste_setor_circular, teste_ukc,
           teste_filtrar_em_porto, teste_html_em_porto,
           teste_resumo_janelas, teste_avaliar_navio,
           teste_html_marcadores_navios, teste_html_aviso_apl,
-          teste_ws_parse_frame, teste_haversine, teste_agregar_ais,
+          teste_ws_parse_frame, teste_haversine,
+          teste_bbox_contem, teste_bearing, teste_classificar_movimento,
+          teste_agregar_ais,
           teste_html_ais_ativo, teste_html_ais_inativo, teste_fusao_apl_ais,
-          teste_carregar_portos, teste_html_porto_sem_apl,
+          teste_html_movimentos_ais,
+          teste_carregar_portos, teste_carregar_portos_bbox_derivada,
+          teste_html_porto_sem_apl,
           teste_html_tabela_regras_formatada,
           teste_html_landing, teste_dark_mode, teste_com_tentativas]
 
