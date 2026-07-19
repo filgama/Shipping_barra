@@ -76,6 +76,29 @@ ESTADO_ROTULO = {0: "GO", 1: "conditional GO", 2: "NO-GO"}
 ESTOFA_ROTULO = {"PM": "HW", "BM": "LW"}
 SENTIDO_ROTULO = {"entrada": "arrival", "saída": "departure"}
 
+# Unidade de apresentação por parâmetro horário (regras.toml guarda os
+# valores em SI/nós; a conversão para NM da visibilidade é só apresentação).
+UNIDADE_PARAMETRO = {"swell_altura": "m", "swell_periodo": "s",
+                     "onda_altura": "m", "vento_kn": "kn",
+                     "rajada_kn": "kn", "visibilidade_m": "NM",
+                     "corrente_kn": "kn"}
+METROS_POR_NM = 1852.0
+
+
+def _fmt_limiar(regra: dict, valor: float) -> str:
+    """Formata um limiar de regras.toml para a tabela "Rules in force":
+    operador (≤/≥) + número + unidade de apresentação, p.ex. "≥ 2.5 m".
+    A visibilidade converte-se de metros para NM só aqui — regras.toml
+    continua em metros (fonte de verdade)."""
+    operador = "≤" if regra.get("sentido") == "abaixo" else "≥"
+    parametro = regra.get("parametro")
+    if parametro == "visibilidade_m":
+        valor = valor / METROS_POR_NM
+    unidade = UNIDADE_PARAMETRO.get(parametro, "")
+    if unidade:
+        return f"{operador} {valor:g} {unidade}"
+    return f"{operador} {valor:g}"
+
 
 # ---------------------------------------------------------------------------
 # Regras
@@ -1156,13 +1179,21 @@ def gerar_html_porto(porto, previsao, avaliacoes, navios, apl, regras,
             f"aria-label=\"{e(aria_m)}\">{seta}<sup>{extra}</sup></button>")
 
     # --- regras em vigor ----------------------------------------------------
-    linhas_regras = "".join(
-        f"<tr><td>{e(r['descricao'])}</td>"
-        f"<td>{'≤' if r.get('sentido') == 'abaixo' else '≥'}</td>"
-        f"<td>{r['ambar']:g}</td><td>{r['vermelho']:g}</td>"
-        f"<td class='fonte-{'ph' if 'PLACEHOLDER' in r['fonte'] else 'ok'}'>"
-        f"{e(r['fonte'])}</td></tr>"
-        for r in regras.get("regra", []))
+    def _linha_regra(r: dict) -> str:
+        nome = r["descricao"]
+        if "dir_min" in r and "dir_max" in r:
+            nome = f"{nome} ({r['dir_min']:g}°–{r['dir_max']:g}°)"
+        tipo_fonte, _, nota_fonte = r["fonte"].partition(" — ")
+        classe_badge = ("badge-fonte badge-ph" if
+                        tipo_fonte.startswith("PLACEHOLDER") else "badge-fonte")
+        badge = f"<span class='{classe_badge}'>{e(tipo_fonte)}</span>"
+        nota = f"<span class='fonte-nota'>{e(nota_fonte)}</span>" if nota_fonte else ""
+        return (f"<tr><td>{e(nome)}</td>"
+                f"<td>{e(_fmt_limiar(r, r['ambar']))}</td>"
+                f"<td>{e(_fmt_limiar(r, r['vermelho']))}</td>"
+                f"<td>{badge}{nota}</td></tr>")
+
+    linhas_regras = "".join(_linha_regra(r) for r in regras.get("regra", []))
     notas = "".join(f"<li>{e(x)}</li>" for x in
                     regras.get("notas_regulamentares", {}).get("itens", []))
 
@@ -1412,8 +1443,12 @@ def gerar_html_porto(porto, previsao, avaliacoes, navios, apl, regras,
          min-width:480px; }}
  th,td {{ border:1px solid #B9C6CF; padding:5px 6px; text-align:left; }}
  th {{ background:var(--tinta); color:var(--papel); }}
- .fonte-ph {{ color:var(--mag); font-weight:600; }}
- .fonte-ok {{ color:#1E7A5A; }}
+ .badge-fonte {{ display:inline-block; font-size:0.72em; font-weight:600;
+                padding:0.1em 0.45em; border-radius:5px; white-space:nowrap;
+                border:1px solid #B9C6CF; color:#5C6E7C; background:var(--agua); }}
+ .badge-fonte.badge-ph {{ color:var(--mag); border-color:var(--mag);
+                          background:rgba(176,37,124,0.12); }}
+ .fonte-nota {{ display:block; font-size:0.85em; color:#5C6E7C; margin-top:2px; }}
  ul {{ margin:6px 0 0; padding-left:18px; font-size:12px; }}
  .vazio {{ color:#5C6E7C; font-style:italic; font-size:13px; }}
  .sub-ais {{ font-size:11px; color:#5C6E7C; margin:0 0 6px; }}
@@ -1428,7 +1463,9 @@ def gerar_html_porto(porto, previsao, avaliacoes, navios, apl, regras,
   .navio {{ border-bottom-color:#243442; }}
   .aviso {{ background:#15222D; color:#E6EDF3;
            border-bottom:1px solid #33475A; }}
-  .fonte-ok {{ color:#4CC38A; }}
+  .badge-fonte {{ border-color:#33475A; color:#9FB2BE; }}
+  .badge-fonte.badge-ph {{ background:rgba(228,100,174,0.15); }}
+  .fonte-nota {{ color:#9FB2BE; }}
   .chip {{ border-color:#33475A; }}
  }}
  @media (prefers-reduced-motion: reduce) {{
@@ -1479,8 +1516,8 @@ any specific port.</div>
 <section aria-labelledby="regras-titulo">
  <h2 id="regras-titulo">Rules in force</h2>
  <div class="scroll">
- <table><thead><tr><th>Rule</th><th>Direction</th><th>Amber</th>
- <th>Red</th><th>Source</th></tr></thead>
+ <table><thead><tr><th>Rule</th><th>Amber</th><th>Red</th>
+ <th>Source</th></tr></thead>
  <tbody>{linhas_regras}</tbody></table>
  </div>
  <ul>{notas}</ul>

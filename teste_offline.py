@@ -397,6 +397,39 @@ def teste_html_porto_sem_apl():
     assert "All ports" in out                          # link para a landing
 
 
+def teste_html_tabela_regras_formatada():
+    """Tabela 'Rules in force': unidades (NM/m/kn), sector direcional no
+    nome da regra, e fonte como badge + nota (não texto PT a dominar a
+    coluna). Usa um conjunto de regras próprio (espelha regras.toml real
+    para swell/visibilidade), independente do REGRAS partilhado por outros
+    testes de estado."""
+    regras_fmt = {
+        "ukc": REGRAS["ukc"],
+        "estofa": REGRAS["estofa"],
+        "regra": [
+            {"parametro": "swell_altura",
+             "descricao": "W/SW swell on the approach",
+             "dir_min": 190.0, "dir_max": 300.0, "ambar": 2.5, "vermelho": 3.5,
+             "fonte": "PLACEHOLDER — validar com piloto"},
+            {"parametro": "visibilidade_m", "descricao": "Horizontal visibility",
+             "sentido": "abaixo", "ambar": 3704.0, "vermelho": 1852.0,
+             "fonte": "PIANC/prática — nota de exemplo"},
+        ],
+        "regra_navio": REGRAS["regra_navio"],
+    }
+    prev = previsao_fixa()
+    avals = [jb.avaliar_hora(h, regras_fmt) for h in prev]
+    out = jb.gerar_html_porto(PORTO_TESTE, prev, avals, [], {}, regras_fmt)
+    assert "≥ 2.5 m" in out                    # swell (regra dir.)
+    assert "≤ 1 NM" in out                     # visibilidade vermelha convertida
+    assert "badge-ph" in out
+    assert "(190°–300°)" in out
+    assert "3704" not in out                   # metros brutos não aparecem
+    assert "<th>Rule</th><th>Amber</th><th>Red</th>" in out
+    assert "<th>Source</th>" in out
+    assert "<th>Direction</th>" not in out
+
+
 def teste_carregar_portos():
     portos = jb.carregar_portos()
     assert len(portos) >= 45
@@ -476,6 +509,7 @@ TESTES = [teste_avaliar_hora_basico, teste_setor_circular, teste_ukc,
           teste_ws_parse_frame, teste_haversine, teste_agregar_ais,
           teste_html_ais_ativo, teste_html_ais_inativo, teste_fusao_apl_ais,
           teste_carregar_portos, teste_html_porto_sem_apl,
+          teste_html_tabela_regras_formatada,
           teste_html_landing, teste_dark_mode, teste_com_tentativas]
 
 
