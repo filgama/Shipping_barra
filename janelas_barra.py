@@ -1479,6 +1479,151 @@ Personal project, open source.</footer>
 </body></html>"""
 
 
+# Nomes EN dos países do catálogo (para os cabeçalhos da landing page).
+PAISES = {"PT": "Portugal", "ES": "Spain", "FR": "France", "BE": "Belgium",
+          "NL": "Netherlands", "DE": "Germany", "DK": "Denmark",
+          "NO": "Norway", "SE": "Sweden", "FI": "Finland", "EE": "Estonia",
+          "LV": "Latvia", "LT": "Lithuania", "PL": "Poland",
+          "GB": "United Kingdom", "IE": "Ireland", "IT": "Italy",
+          "GR": "Greece", "MT": "Malta", "CY": "Cyprus", "SI": "Slovenia",
+          "HR": "Croatia", "RO": "Romania", "BG": "Bulgaria"}
+
+
+def gerar_html_landing(resultados, regras) -> str:
+    """Landing page (index.html): um cartão por porto, agrupado por país,
+    com o estado da hora corrente e a próxima janela verde. `resultados` é
+    a lista de dicts {"porto", "estado_atual", "proxima_verde", "erro"}
+    produzida pelo loop do main — com erro preenchido, o cartão degrada
+    para "no data this run" (cinzento), nunca esconde o porto."""
+    e = html.escape
+    agora_utc = datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M")
+
+    por_pais: dict[str, list] = {}
+    for r in resultados:
+        por_pais.setdefault(r["porto"]["pais"], []).append(r)
+
+    seccoes = []
+    for pais in sorted(por_pais, key=lambda p: PAISES.get(p, p)):
+        nome_pais = PAISES.get(pais, pais)
+        bandeira_pais = por_pais[pais][0]["porto"]["bandeira"]
+        cartoes = []
+        for r in por_pais[pais]:
+            porto = r["porto"]
+            cor = COR.get(r["estado_atual"], "#5C6E7C")
+            if r["erro"] is not None:
+                estado_txt = "no data this run"
+            elif r["proxima_verde"] == "now":
+                estado_txt = "green window: now"
+            elif r["proxima_verde"]:
+                estado_txt = f"next green window: {r['proxima_verde']}"
+            else:
+                estado_txt = "no green window in 72 h"
+            filtro = f"{porto['nome']} {nome_pais}".lower()
+            cartoes.append(
+                f"<a class='cartao' href='ports/{porto['slug']}.html' "
+                f"data-filtro=\"{e(filtro)}\">"
+                f"<span class='farol' style='background:{cor}' "
+                f"aria-hidden='true'></span>"
+                f"<span class='cartao-corpo'><span class='cartao-nome'>"
+                f"{porto['bandeira']} {e(porto['nome'])}</span>"
+                f"<span class='cartao-estado'>{e(estado_txt)}</span>"
+                f"</span></a>")
+        seccoes.append(
+            f"<section class='pais' data-pais=\"{e(nome_pais.lower())}\">"
+            f"<h2>{bandeira_pais} {e(nome_pais)}</h2>"
+            f"<div class='grelha'>{''.join(cartoes)}</div></section>")
+
+    return f"""<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="900">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#DCEBF1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0D1720" media="(prefers-color-scheme: dark)">
+<meta name="description" content="Informal port approach windows for major European ports: Open-Meteo forecast crossed with editable rules — not an operational tool.">
+<meta property="og:title" content="Port Approach Windows — Europe">
+<meta property="og:description" content="Green/amber/red approach windows for major European ports — informative, not operational.">
+<link rel="icon" href="{FAVICON_HREF}">
+<title>Port Approach Windows — Europe</title>
+<style>
+ :root {{ --tinta:#1B2A38; --agua:#DCEBF1; --papel:#F7F5EF; --mag:#B0257C;
+         --verde:#1E7A5A; --ambar:#E2B93B; --vermelho:#C0392B; }}
+ * {{ box-sizing:border-box; }}
+ body {{ margin:0; background:var(--agua); color:var(--tinta);
+        font-family:system-ui,-apple-system,sans-serif; line-height:1.4; }}
+ header {{ padding:16px 16px 8px; max-width:720px; margin:0 auto; }}
+ h1 {{ margin:0; font-size:24px; }}
+ .sub {{ font-size:12px; color:#5C6E7C; margin-top:4px; }}
+ .aviso {{ background:var(--tinta); color:var(--papel); font-size:12px;
+          padding:8px 16px; }}
+ main {{ max-width:720px; margin:0 auto; padding:0 12px 12px; }}
+ #filtro {{ width:100%; margin:12px 0 4px; padding:10px 12px; font:inherit;
+           border:2px solid var(--tinta); border-radius:10px;
+           background:var(--papel); color:var(--tinta); }}
+ section.pais {{ background:var(--papel); border:2px solid var(--tinta);
+                border-radius:12px; margin:12px 0; padding:12px; }}
+ h2 {{ font-size:16px; margin:0 0 8px; }}
+ .grelha {{ display:grid; grid-template-columns:repeat(auto-fill,
+            minmax(210px, 1fr)); gap:8px; }}
+ .cartao {{ display:flex; gap:8px; align-items:flex-start; padding:8px;
+           border:1px solid #B9C6CF; border-radius:8px; color:inherit;
+           text-decoration:none; }}
+ .cartao:hover, .cartao:focus-visible {{ border-color:var(--tinta); }}
+ .cartao.hide {{ display:none; }}
+ .farol {{ flex:0 0 12px; height:12px; border-radius:50%; margin-top:4px; }}
+ .cartao-corpo {{ display:flex; flex-direction:column; min-width:0; }}
+ .cartao-nome {{ font-weight:600; font-size:14px; }}
+ .cartao-estado {{ font-size:11px; color:#5C6E7C; }}
+ footer {{ font-size:11px; color:#5C6E7C; padding:0 16px 20px;
+          max-width:720px; margin:0 auto; }}
+ @media (prefers-color-scheme: dark) {{
+  :root {{ --tinta:#E6EDF3; --agua:#0D1720; --papel:#15222D; --mag:#E464AE; }}
+  section.pais {{ border-color:#33475A; }}
+  .cartao {{ border-color:#33475A; }}
+  .aviso {{ background:#15222D; color:#E6EDF3;
+           border-bottom:1px solid #33475A; }}
+ }}
+</style></head>
+<body>
+<header>
+ <h1>Port Approach Windows — Europe</h1>
+ <div class="sub">Updated at {agora_utc} UTC · Open-Meteo Marine ·
+ thresholds in regras.toml</div>
+</header>
+<div class="aviso" role="note">⚠ Informal planning aid — NOT an operational tool.
+It does not replace port authorities, VTS, pilotage, official tide tables or
+local regulations. All thresholds are generic placeholders, not validated for
+any specific port.</div>
+<main>
+<input id="filtro" type="search" placeholder="Filter ports…"
+ aria-label="Filter ports">
+{''.join(seccoes)}
+</main>
+<footer>Each port links to its detailed 72-hour panel (local port time).
+Sea level: Open-Meteo model (not an official tide table).
+Threshold provenance notes are kept in Portuguese.
+Personal project, open source.</footer>
+<script>
+(function () {{
+  var campo = document.getElementById('filtro');
+  var cartoes = Array.prototype.slice.call(document.querySelectorAll('.cartao'));
+  var paises = Array.prototype.slice.call(document.querySelectorAll('section.pais'));
+  campo.addEventListener('input', function () {{
+    var q = campo.value.trim().toLowerCase();
+    cartoes.forEach(function (c) {{
+      c.classList.toggle('hide', q !== '' && c.dataset.filtro.indexOf(q) === -1);
+    }});
+    paises.forEach(function (s) {{
+      var visiveis = s.querySelectorAll('.cartao:not(.hide)').length;
+      s.style.display = visiveis ? '' : 'none';
+    }});
+  }});
+}})();
+</script>
+</body></html>"""
+
+
 # ---------------------------------------------------------------------------
 def main() -> None:
     p = argparse.ArgumentParser(description="Janelas da Barra")

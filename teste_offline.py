@@ -407,6 +407,31 @@ def teste_carregar_portos():
     assert all("latitude" in p and "longitude" in p for p in portos)
 
 
+def teste_html_landing():
+    resultados = [
+        {"porto": {"slug": "lisboa", "nome": "Lisbon", "pais": "PT",
+                   "bandeira": "🇵🇹", "latitude": 38.62, "longitude": -9.38},
+         "estado_atual": 0, "proxima_verde": "now", "erro": None},
+        {"porto": {"slug": "rotterdam", "nome": "Rotterdam", "pais": "NL",
+                   "bandeira": "🇳🇱", "latitude": 51.98, "longitude": 4.05},
+         "estado_atual": None, "proxima_verde": None,
+         "erro": "timeout Open-Meteo"},
+        {"porto": {"slug": "hamburg", "nome": "Hamburg", "pais": "DE",
+                   "bandeira": "🇩🇪", "latitude": 53.98, "longitude": 8.65},
+         "estado_atual": 1, "proxima_verde": "Sat 14:00", "erro": None},
+    ]
+    out = jb.gerar_html_landing(resultados, REGRAS)
+    assert "Port Approach Windows — Europe" in out
+    assert "href='ports/lisboa.html'" in out and "Portugal" in out
+    assert "green window: now" in out
+    assert "no data this run" in out and "Netherlands" in out
+    assert "next green window: Sat 14:00" in out and "Germany" in out
+    assert "NOT an operational tool" in out            # banner obrigatório
+    assert 'id="filtro"' in out                        # filtro client-side
+    # países ordenados por nome EN: Germany < Netherlands < Portugal
+    assert out.index("Germany") < out.index("Netherlands") < out.index("Portugal")
+
+
 def teste_dark_mode():
     prev = previsao_fixa()
     avals = [jb.avaliar_hora(h, REGRAS) for h in prev]
@@ -425,7 +450,8 @@ TESTES = [teste_avaliar_hora_basico, teste_setor_circular, teste_ukc,
           teste_html_marcadores_navios, teste_html_aviso_apl,
           teste_ws_parse_frame, teste_haversine, teste_agregar_ais,
           teste_html_ais_ativo, teste_html_ais_inativo, teste_fusao_apl_ais,
-          teste_carregar_portos, teste_html_porto_sem_apl, teste_dark_mode]
+          teste_carregar_portos, teste_html_porto_sem_apl,
+          teste_html_landing, teste_dark_mode]
 
 
 def main():
