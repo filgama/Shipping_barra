@@ -41,9 +41,13 @@ fonte = "PLACEHOLDER — doc de análise refere ±45 min da estofa para atracaç
 # Cada regra: parametro, limiares ambar/vermelho e, opcionalmente, um setor
 # direcional [dir_min, dir_max] em graus (só avalia se a direção cair no setor).
 
+# NOTA: os campos `descricao` estão em INGLÊS porque são mostrados tal-e-qual
+# na UI (site em inglês desde a expansão multi-porto). Comentários e campos
+# `fonte` continuam em português (proveniência interna).
+
 [[regra]]
 id = "swell_oeste"
-descricao = "Ondulação (swell) de W/SW na aproximação"
+descricao = "W/SW swell on the approach"
 parametro = "swell_altura"
 dir_min = 190
 dir_max = 300
@@ -53,7 +57,7 @@ fonte = "PLACEHOLDER — validar com piloto"
 
 [[regra]]
 id = "periodo_longo"
-descricao = "Período de swell longo (mar de fundo pesado)"
+descricao = "Long swell period (heavy groundswell)"
 parametro = "swell_periodo"
 ambar = 12.0
 vermelho = 16.0
@@ -61,7 +65,7 @@ fonte = "PLACEHOLDER — validar com piloto"
 
 [[regra]]
 id = "mar_total"
-descricao = "Altura significativa total (mar composto)"
+descricao = "Total significant wave height (combined sea)"
 parametro = "onda_altura"
 ambar = 3.0
 vermelho = 4.5
@@ -69,7 +73,7 @@ fonte = "PLACEHOLDER — validar com piloto"
 
 [[regra]]
 id = "vento"
-descricao = "Vento médio a 10 m"
+descricao = "Mean wind at 10 m"
 parametro = "vento_kn"
 ambar = 25.0
 vermelho = 35.0
@@ -77,7 +81,7 @@ fonte = "PLACEHOLDER — validar com piloto"
 
 [[regra]]
 id = "rajada"
-descricao = "Rajada"
+descricao = "Wind gusts"
 parametro = "rajada_kn"
 ambar = 35.0
 vermelho = 45.0
@@ -85,7 +89,7 @@ fonte = "PLACEHOLDER — validar com piloto"
 
 [[regra]]
 id = "visibilidade"
-descricao = "Visibilidade horizontal"
+descricao = "Horizontal visibility"
 parametro = "visibilidade_m"
 # Limiar INVERTIDO: mau quando o valor está ABAIXO do limiar (sentido = "abaixo").
 sentido = "abaixo"
@@ -95,7 +99,7 @@ fonte = "PLACEHOLDER — doc de análise cita 1 MN como limiar típico de suspen
 
 [[regra]]
 id = "corrente"
-descricao = "Corrente na aproximação"
+descricao = "Current on the approach"
 parametro = "corrente_kn"
 ambar = 2.0
 vermelho = 3.0
@@ -107,7 +111,7 @@ fonte = "PLACEHOLDER — validar com piloto"
 
 [[regra]]
 id = "embarque_piloto"
-descricao = "Embarque do piloto (Hs na zona de embarque)"
+descricao = "Pilot boarding (Hs at the boarding area)"
 parametro = "onda_altura"
 ambar = 2.5
 vermelho = 3.0
@@ -123,7 +127,7 @@ id = "roro_vento"
 tipos = ["ro-ro", "roro", "ro/ro"]
 parametro = "vento_kn"
 vermelho = 20.0
-descricao = "Regulamento APL: RO-RO interdito com vento > 20 kn"
+descricao = "APL regulation: RO-RO barred with wind > 20 kn"
 fonte = "PLACEHOLDER — citado no doc de análise como regra do Regulamento de Exploração da APL, artigo por confirmar"
 
 [dimensoes]
@@ -136,10 +140,14 @@ fonte = "PLACEHOLDER — citado no doc de análise como regra APL, artigo por co
 
 [notas_regulamentares]
 # Informação qualitativa (não numérica) mostrada no painel, com fonte pública.
+# Notas específicas de LISBOA (herdadas da primeira versão do painel);
+# mostradas em todos os portos até haver notas por porto — assinaladas como
+# tal na primeira linha.
 itens = [
-  "O Capitão do Porto pode fechar ou condicionar a barra com base nas condições de tempo e mar, ouvida a Autoridade Portuária (Edital CPL).",
-  "Pilotagem obrigatória desde fora das barras para os navios abrangidos; embarque do piloto conforme Regulamento de Autoridade Portuária da APL.",
-  "Navios-tanque com cargas perigosas das classes 2, 6 e 8 têm restrições específicas (Regulamento APL).",
-  "Avisos em vigor: VTS-Lisboa, Capitania e ANAVNET (anavnet.hidrografico.pt).",
+  "These qualitative notes refer to the Port of LISBON (original scope of this project); per-port notes are future work.",
+  "The Harbour Master may close or restrict the Lisbon bar based on weather and sea conditions, after consulting the Port Authority (CPL notice).",
+  "Pilotage is compulsory from outside the bars for vessels in scope; pilot boarding as per the APL Port Authority Regulation.",
+  "Tankers carrying dangerous cargo of classes 2, 6 and 8 face specific restrictions (APL Regulation).",
+  "Active warnings: VTS-Lisboa, Capitania and ANAVNET (anavnet.hidrografico.pt).",
 ]
 fonte = "Regulamento de Autoridade Portuária da APL + Editais da Capitania do Porto de Lisboa"

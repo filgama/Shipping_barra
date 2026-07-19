@@ -70,7 +70,11 @@ ESTADOS = {"verde": 0, "ambar": 1, "vermelho": 2}
 ESTADO_NOME = {0: "verde", 1: "ambar", 2: "vermelho"}
 # Semântica GO/NO-GO (doc de análise, secção 8) para os textos de detalhe;
 # as cores/estados internos 0/1/2 e os nomes verde/ambar/vermelho mantêm-se.
-ESTADO_ROTULO = {0: "GO", 1: "GO condicional", 2: "NO-GO"}
+ESTADO_ROTULO = {0: "GO", 1: "conditional GO", 2: "NO-GO"}
+# Rótulos UI (inglês) para os tipos internos de estofa PM/BM — os
+# identificadores internos ficam em PT (convenção), só a UI é traduzida.
+ESTOFA_ROTULO = {"PM": "HW", "BM": "LW"}
+SENTIDO_ROTULO = {"entrada": "arrival", "saída": "departure"}
 
 
 # ---------------------------------------------------------------------------
@@ -229,8 +233,8 @@ def avaliar_ukc(calado: float, nivel_mar, regras: dict, onda_altura=None,
     if calado is None or nivel_mar is None:
         return None
     if profundidade_zh is None:
-        return 1, ("UKC não avaliado: sem dados de profundidade de "
-                   "referência (profundidade_zh) para este porto")
+        return 1, ("UKC not assessed: no reference depth "
+                   "(profundidade_zh) for this port")
     prof = profundidade_zh
     altura_agua = prof + nivel_mar
     folga = altura_agua - calado
@@ -244,14 +248,14 @@ def avaliar_ukc(calado: float, nivel_mar, regras: dict, onda_altura=None,
         if frac:
             margem = frac * onda_altura
             folga_efetiva = folga - margem
-            margem_txt = f" (−{margem:.1f} m ondulação)"
+            margem_txt = f" (−{margem:.1f} m swell allowance)"
     pct = folga_efetiva / calado
-    txt = (f"água ≈{altura_agua:.1f} m, folga {folga_efetiva:.1f} m"
-           f"{margem_txt} ({pct:.0%} do calado)")
+    txt = (f"water ≈{altura_agua:.1f} m, clearance {folga_efetiva:.1f} m"
+           f"{margem_txt} ({pct:.0%} of draught)")
     if pct < u["folga_minima_pct"]:
-        return 2, "UKC insuficiente: " + txt
+        return 2, "insufficient UKC: " + txt
     if pct < u["folga_ambar_pct"]:
-        return 1, "UKC marginal: " + txt
+        return 1, "marginal UKC: " + txt
     return 0, "UKC ok: " + txt
 
 
@@ -313,20 +317,20 @@ def avaliar_navio(n: dict, previsao: list[dict], avaliacoes: list[tuple],
     idx_na_previsao); estado é None se não houver hora reconhecida ou esta
     cair fora do horizonte."""
     if n["momento"] is None:
-        return None, ["sem data reconhecida na tabela APL"], None, None
+        return None, ["no recognisable date in the APL data"], None, None
     alvo = n["momento"].strftime("%Y-%m-%dT%H:00")
     idx = next((i for i, h in enumerate(previsao) if h["tempo"] == alvo), None)
     if idx is None:
-        return None, ["fora do horizonte da previsão"], None, None
+        return None, ["outside the forecast horizon"], None, None
     estado_n, motivos_n = avaliacoes[idx]
-    motivos_n = list(motivos_n) or ["condições dentro dos limiares"]
+    motivos_n = list(motivos_n) or ["conditions within thresholds"]
     ukc = avaliar_ukc(n["calado"], previsao[idx]["nivel_mar"], regras,
                       previsao[idx].get("onda_altura"), profundidade_zh)
     if ukc:
         estado_n = max(estado_n, ukc[0])
         motivos_n.append(ukc[1])
     elif n["calado"] is None:
-        motivos_n.append("calado não detetado — UKC não avaliado")
+        motivos_n.append("draught not detected — UKC not assessed")
     for est_nav, motivo_nav in avaliar_navio_tipo(n, previsao[idx], regras):
         estado_n = max(estado_n, est_nav)
         motivos_n.append(motivo_nav)
@@ -336,12 +340,13 @@ def avaliar_navio(n: dict, previsao: list[dict], avaliacoes: list[tuple],
         prox = min(estofas, key=lambda es: abs(es["indice"] - idx))
         delta_min = abs(prox["indice"] - idx) * 60
         hh_estofa = prox["tempo"][11:13]
+        rot_estofa = ESTOFA_ROTULO.get(prox["tipo"], prox["tipo"])
         if janela_estofa and delta_min <= janela_estofa:
-            nota_estofa = (f"ETA a {delta_min:g} min da estofa "
-                           f"({prox['tipo']} {hh_estofa}h)")
+            nota_estofa = (f"ETA within {delta_min:g} min of slack water "
+                           f"({rot_estofa} {hh_estofa}h)")
         else:
-            nota_estofa = (f"ETA fora de janela de estofa "
-                           f"({prox['tipo']} {hh_estofa}h)")
+            nota_estofa = (f"ETA outside the slack-water window "
+                           f"({rot_estofa} {hh_estofa}h)")
     return estado_n, motivos_n, nota_estofa, idx
 
 
@@ -351,12 +356,12 @@ def avaliar_navio(n: dict, previsao: list[dict], avaliacoes: list[tuple],
 # limiar de decisão náutica; não vive em regras.toml por isso mesmo.
 JANELA_MIN_HORAS = 3
 
-DIAS_SEMANA_ABREV = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"]
+DIAS_SEMANA_ABREV = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 
 def _fmt_dia_hora(tempo_iso: str) -> str:
     dt = datetime.strptime(tempo_iso, "%Y-%m-%dT%H:%M")
-    return f"{DIAS_SEMANA_ABREV[dt.weekday()]} {dt.strftime('%H')}h"
+    return f"{DIAS_SEMANA_ABREV[dt.weekday()]} {dt.strftime('%H')}:00"
 
 
 def resumo_janelas(previsao: list[dict], avaliacoes: list[tuple],
@@ -379,14 +384,14 @@ def resumo_janelas(previsao: list[dict], avaliacoes: list[tuple],
             j += 1
         if j - i >= JANELA_MIN_HORAS:
             frases.append(
-                f"Próxima janela GO contínua: {_fmt_dia_hora(previsao[i]['tempo'])}"
-                f"–{previsao[j - 1]['tempo'][11:13]}h ({j - i} h)")
+                f"Next continuous GO window: {_fmt_dia_hora(previsao[i]['tempo'])}"
+                f"–{previsao[j - 1]['tempo'][11:13]}:00 ({j - i} h)")
             break
         i = j
     prox_no_go = next((h for h, a in zip(previsao[inicio:], avaliacoes[inicio:])
                        if a[0] == 2), None)
     if prox_no_go:
-        frases.append(f"Próximo NO-GO: {_fmt_dia_hora(prox_no_go['tempo'])}")
+        frases.append(f"Next NO-GO: {_fmt_dia_hora(prox_no_go['tempo'])}")
     return frases
 
 
@@ -884,11 +889,11 @@ JS_PAINEL = """
     if (c.dataset.motivos) {
       partes.push('<div class="det-mot">' + c.dataset.motivos + '</div>');
     }
-    partes.push(linha('Mar', c.dataset.mar));
-    partes.push(linha('Nível', c.dataset.nivel));
-    partes.push(linha('Vento', c.dataset.vento));
-    partes.push(linha('Corrente', c.dataset.corrente));
-    partes.push(linha('Visibilidade', c.dataset.vis));
+    partes.push(linha('Sea', c.dataset.mar));
+    partes.push(linha('Sea level', c.dataset.nivel));
+    partes.push(linha('Wind', c.dataset.vento));
+    partes.push(linha('Current', c.dataset.corrente));
+    partes.push(linha('Visibility', c.dataset.vis));
     det.innerHTML = partes.join('');
     det.hidden = false;
   }
@@ -935,8 +940,14 @@ JS_PAINEL = """
 </script>"""
 
 
-def gerar_html(previsao, avaliacoes, navios, apl, regras, ais=None) -> str:
+def gerar_html_porto(porto, previsao, avaliacoes, navios, apl, regras,
+                     ais=None) -> str:
+    """Página de um porto (ports/<slug>.html), em inglês. As secções APL
+    (Arrivals/Departures/In port) só aparecem em portos com `apl = true`
+    no catálogo; a secção AIS só em portos com `ais_bbox`."""
     e = html.escape
+    tem_apl = bool(porto.get("apl"))
+    tem_ais = bool(porto.get("ais_bbox"))
     agora = datetime.now(timezone.utc).astimezone().strftime("%d/%m/%Y %H:%M")
 
     # --- AIS em direto (aisstream.io): índices para fusão com os cartões APL
@@ -962,8 +973,8 @@ def gerar_html(previsao, avaliacoes, navios, apl, regras, ais=None) -> str:
     if idx_agora is not None:
         est_a, mot_a = avaliacoes[idx_agora]
         rot_a = ESTADO_ROTULO[est_a]
-        detalhe_a = mot_a[0] if mot_a else "condições dentro dos limiares"
-        resumo_agora = f"Agora: {rot_a} — {detalhe_a}"
+        detalhe_a = mot_a[0] if mot_a else "conditions within thresholds"
+        resumo_agora = f"Now: {rot_a} — {detalhe_a}"
     resumo_janelas_txt = " · ".join(resumo_janelas(previsao, avaliacoes, agora_dt))
     if resumo_janelas_txt:
         resumo_agora = (resumo_agora + " · " + resumo_janelas_txt
@@ -985,7 +996,7 @@ def gerar_html(previsao, avaliacoes, navios, apl, regras, ais=None) -> str:
         vento_txt = ""
         if hora.get("vento_kn") is not None:
             nome, seta = cardeal_seta(hora.get("vento_dir"))
-            raj = (f" · rajada {hora['rajada_kn']:g} kn"
+            raj = (f" · gusts {hora['rajada_kn']:g} kn"
                    if hora.get("rajada_kn") is not None else "")
             vento_txt = f"{hora['vento_kn']:g} kn {nome}{seta}{raj}"
         corrente_txt = ""
@@ -996,7 +1007,7 @@ def gerar_html(previsao, avaliacoes, navios, apl, regras, ais=None) -> str:
                    if hora.get("visibilidade_m") is not None else "")
         mot_txt = "; ".join(motivos)
         if estado == 1 and mot_txt:
-            mot_txt = "Condicionantes: " + mot_txt
+            mot_txt = "Constraints: " + mot_txt
         rotulo = ESTADO_ROTULO[estado]
         marca_dia = f"<span class='dia'>{dia}</span>" if hh == "00" else ""
         extra_cls = " cel-a" if estado == 1 else ""
@@ -1010,15 +1021,16 @@ def gerar_html(previsao, avaliacoes, navios, apl, regras, ais=None) -> str:
             glifo = "<span class='glifo' aria-hidden='true'>▲</span>"
         elif estado == 1:
             glifo = "<span class='glifo' aria-hidden='true'>~</span>"
+        rot_estofa = ESTOFA_ROTULO.get(estofa_tipo, estofa_tipo)
         marca_estofa = (f"<span class='marca-estofa' aria-hidden='true'>"
-                        f"{estofa_tipo}</span>" if estofa_tipo else "")
+                        f"{rot_estofa}</span>" if estofa_tipo else "")
         aria = f"{dia}/{t[5:7]} {hh}h — {rotulo}"
         if mot_txt:
             aria += ". " + mot_txt
         if estofa_tipo:
-            aria += f". {estofa_tipo} (estofa)"
+            aria += f". {rot_estofa} (slack water)"
         if hora.get("e_dia") == 0:
-            aria += ". Noite"
+            aria += ". Night"
         celulas.append(
             f"<button type='button' class='cel{extra_cls}{noite_cls}"
             f"{estofa_cls}' style='background:{COR[estado]}' data-t='{t}' "
@@ -1035,7 +1047,8 @@ def gerar_html(previsao, avaliacoes, navios, apl, regras, ais=None) -> str:
     for k, n in enumerate(
             sorted(navios, key=lambda x: (x["momento"] or datetime.max)), start=1):
         estado_n, motivos_n, nota_estofa, idx = avaliar_navio(
-            n, previsao, avaliacoes, regras, estofas_globais)
+            n, previsao, avaliacoes, regras, estofas_globais,
+            profundidade_zh=porto.get("profundidade_zh"))
         navios_avaliados.append({**n, "id": f"navio-{k}", "estado_n": estado_n,
                                  "motivos_n": motivos_n,
                                  "nota_estofa": nota_estofa, "idx": idx})
@@ -1046,14 +1059,14 @@ def gerar_html(previsao, avaliacoes, navios, apl, regras, ais=None) -> str:
         estado_chave = ESTADO_NOME.get(nv["estado_n"], "none")
         contagens[estado_chave] += 1
         cor = COR.get(nv["estado_n"], "#5C6E7C")
-        rot_n = ESTADO_ROTULO.get(nv["estado_n"], "sem avaliação")
+        rot_n = ESTADO_ROTULO.get(nv["estado_n"], "not assessed")
         quando = (nv["momento"].strftime("%d/%m %H:%M")
                   if nv["momento"] else "—")
         chips = []
         if nv.get("tipo"):
             chips.append(f"<span class='chip'>{e(nv['tipo'])}</span>")
         if nv["calado"]:
-            chips.append(f"<span class='chip'>calado {nv['calado']:g} m</span>")
+            chips.append(f"<span class='chip'>draught {nv['calado']:g} m</span>")
         if nv.get("zona"):
             chips.append(f"<span class='chip'>{e(nv['zona'])}</span>")
         chips_html = (f"<div class='chips'>{''.join(chips)}</div>"
@@ -1066,7 +1079,8 @@ def gerar_html(previsao, avaliacoes, navios, apl, regras, ais=None) -> str:
         if nv_ais_match:
             d, sog = nv_ais_match.get("distancia_mn"), nv_ais_match.get("sog")
             if d is not None and sog is not None:
-                itens_mot.append(f"AIS: a {d:.1f} MN da barra, SOG {sog:.1f} kn")
+                itens_mot.append(f"AIS: {d:.1f} NM off the entrance, "
+                                 f"SOG {sog:.1f} kn")
         mot_html = (("<ul class='nmot'>" +
                     "".join(f"<li>{e(m)}</li>" for m in itens_mot) +
                     "</ul>") if itens_mot else "")
@@ -1078,23 +1092,23 @@ def gerar_html(previsao, avaliacoes, navios, apl, regras, ais=None) -> str:
             href="{e(link_marinetraffic(nv['nome'], nv.get('imo')))}"
             target="_blank" rel="noopener">{e(nv['nome'])}</a>
             <span class="nestado">{e(rot_n)}</span></div>
-            <div class="nmeta">{e(nv['sentido'])} · {quando}</div>
+            <div class="nmeta">{e(SENTIDO_ROTULO.get(nv['sentido'], nv['sentido']))} · {quando}</div>
             {chips_html}
             {mot_html}
           </div>
         </div>""")
     if not cartoes:
-        cartoes = ["<p class='vazio'>Sem navios devolvidos pela API da APL "
-                   "nesta recolha (corre com APL ativa ou verifica a API)."]
+        cartoes = ["<p class='vazio'>No vessels returned by the APL API "
+                   "this run (run with APL enabled or check the API)."]
 
     # --- chips de filtro por estado (JS liga-os aos data-estado acima) -----
     chips_filtro_html = ""
     if navios_avaliados:
-        defs = [("todos", "Todos", len(navios_avaliados)),
+        defs = [("todos", "All", len(navios_avaliados)),
                 ("verde", "GO", contagens["verde"]),
-                ("ambar", "GO condicional", contagens["ambar"]),
+                ("ambar", "conditional GO", contagens["ambar"]),
                 ("vermelho", "NO-GO", contagens["vermelho"]),
-                ("none", "Sem avaliação", contagens["none"])]
+                ("none", "Not assessed", contagens["none"])]
         partes = []
         for chave, rot, n_c in defs:
             pressed = "true" if chave == "todos" else "false"
@@ -1138,37 +1152,37 @@ def gerar_html(previsao, avaliacoes, navios, apl, regras, ais=None) -> str:
 
     # --- curva de maré + sparklines de vento/mar, alinhadas à timeline -----
     svg_mare = gerar_svg_mare(previsao)
-    legenda_mare = (" · curva: nível modelado (rel. MSL)" if svg_mare else "")
+    legenda_mare = (" · curve: modelled sea level (rel. MSL)" if svg_mare else "")
     svg_vento = gerar_svg_serie(previsao, "vento_kn", "vento", altura=34,
                                 extra_campo="rajada_kn")
     svg_ondas = gerar_svg_serie(previsao, "onda_altura", "onda", altura=34)
     faixa_vento = (f"<div class='faixa-serie'><span class='faixa-rotulo'>"
-                   f"vento kn</span>{svg_vento}</div>" if svg_vento else "")
+                   f"wind kn</span>{svg_vento}</div>" if svg_vento else "")
     faixa_ondas = (f"<div class='faixa-serie'><span class='faixa-rotulo'>"
-                   f"mar m</span>{svg_ondas}</div>" if svg_ondas else "")
+                   f"sea m</span>{svg_ondas}</div>" if svg_ondas else "")
 
     # --- tabela de próximas marés (PM/BM, nível modelado) -------------------
     linhas_mares = "".join(
         f"<tr><td>{e(es['tempo'][8:10])}/{e(es['tempo'][5:7])} "
-        f"{e(es['tempo'][11:13])}h</td><td>{es['tipo']} "
+        f"{e(es['tempo'][11:13])}h</td><td>{ESTOFA_ROTULO.get(es['tipo'], es['tipo'])} "
         f"{previsao[es['indice']]['nivel_mar']:+.1f} m</td></tr>"
         for es in estofas_globais)
     seccao_mares = ""
     if linhas_mares:
         seccao_mares = (
             "<div class='scroll'><table class='mares'><thead><tr>"
-            "<th>Quando</th><th>PM/BM</th></tr></thead>"
+            "<th>When</th><th>HW/LW</th></tr></thead>"
             f"<tbody>{linhas_mares}</tbody></table></div>"
-            "<p class='ressalva-mare'>Nível modelado Open-Meteo, relativo ao "
-            "MSL — não é a tabela oficial de marés do Instituto Hidrográfico.</p>")
+            "<p class='ressalva-mare'>Modelled Open-Meteo sea level, relative "
+            "to MSL — not an official tide table.</p>")
 
     # --- aviso de fonte APL em falha (painel parcial, nunca enganador) -----
     erros_apl = apl.get("_erros") or []
     aviso_apl = ""
     if erros_apl:
         hm = agora.split(" ")[-1]
-        aviso_apl = (f"<div class='aviso-apl' role='note'>⚠ Dados APL "
-                    f"indisponíveis nesta recolha ({e(hm)}): painel parcial "
+        aviso_apl = (f"<div class='aviso-apl' role='note'>⚠ APL data "
+                    f"unavailable this run ({e(hm)}): partial panel "
                     f"({e('; '.join(erros_apl))}).</div>")
 
     # --- em porto agora ----------------------------------------------------
@@ -1188,40 +1202,41 @@ def gerar_html(previsao, avaliacoes, navios, apl, regras, ais=None) -> str:
             f"href=\"{e(link_marinetraffic(n['nome'], n.get('imo')))}\" "
             f"target='_blank' rel='noopener'>{e(n['nome'])}"
             f"</a></div>{chips_html}"
-            f"<div class='nmeta'>ETD prevista: {etd}</div></div></div>")
+            f"<div class='nmeta'>Expected ETD: {etd}</div></div></div>")
     seccao_porto = ("".join(linhas_porto) or
-                    "<p class='vazio'>Sem navios em porto nesta recolha.</p>")
+                    "<p class='vazio'>No vessels in port in this capture.</p>")
 
     # --- no estuário agora (AIS, aisstream.io) — degrada sem chave/erro ----
     limiar_loa = regras.get("dimensoes", {}).get("loa_atracacao_estofa")
     if ais is None:
-        seccao_ais = ("<p class='vazio'>AIS inativo (sem chave "
-                     "AISSTREAM_KEY configurada).</p>")
+        seccao_ais = ("<p class='vazio'>AIS inactive (no AISSTREAM_KEY "
+                     "configured).</p>")
     elif ais.get("erro"):
-        seccao_ais = (f"<div class='aviso-apl' role='note'>⚠ Recolha AIS "
-                      f"falhou nesta ronda: {e(ais['erro'])}.</div>")
+        seccao_ais = (f"<div class='aviso-apl' role='note'>⚠ AIS capture "
+                      f"failed this run: {e(ais['erro'])}.</div>")
     else:
         cartoes_ais = []
         for nv_ais in ais["navios"]:
             _, seta = cardeal_seta_rumo(nv_ais.get("cog"))
             d, sog = nv_ais.get("distancia_mn"), nv_ais.get("sog")
-            dist_txt = f"{d:.1f} MN da barra" if d is not None else "distância desconhecida"
+            dist_txt = (f"{d:.1f} NM off the entrance"
+                        if d is not None else "position unknown")
             sog_txt = f"SOG {sog:.1f} kn {seta}" if sog is not None else ""
             chips = []
             if nv_ais.get("destino"):
-                chips.append(f"<span class='chip'>destino {e(nv_ais['destino'])}</span>")
+                chips.append(f"<span class='chip'>bound for {e(nv_ais['destino'])}</span>")
             if nv_ais.get("loa") and nv_ais.get("boca"):
                 chips.append(f"<span class='chip'>{nv_ais['loa']:.0f}×"
                              f"{nv_ais['boca']:.0f} m</span>")
             if nv_ais.get("calado"):
-                chips.append(f"<span class='chip'>calado {nv_ais['calado']:g} m</span>")
+                chips.append(f"<span class='chip'>draught {nv_ais['calado']:g} m</span>")
             chips_html_ais = (f"<div class='chips'>{''.join(chips)}</div>"
                              if chips else "")
             nota_loa = ""
             if limiar_loa and nv_ais.get("loa") and nv_ais["loa"] > limiar_loa:
                 nota_loa = (f"<p class='nota-loa'>LOA >{limiar_loa:g} m — "
-                           "regulamento APL exige atracação na estofa "
-                           "(por confirmar).</p>")
+                           "APL regulations require berthing at slack water "
+                           "(unconfirmed).</p>")
             cartoes_ais.append(
                 f"<div class='navio'><span class='farol' "
                 f"style='background:#3B7EA1' aria-hidden='true'></span>"
@@ -1232,28 +1247,55 @@ def gerar_html(previsao, avaliacoes, navios, apl, regras, ais=None) -> str:
                 f"{' · ' + e(sog_txt) if sog_txt else ''}</div>"
                 f"{chips_html_ais}{nota_loa}</div></div>")
         hhmm_ais = ais["quando"].strftime("%H:%M")
-        cab_ais = (f"<p class='sub-ais'>Snapshot AIS das {hhmm_ais}, "
-                  f"~{ais.get('segundos', 60)} s de escuta.</p>")
+        cab_ais = (f"<p class='sub-ais'>AIS snapshot at {hhmm_ais}, "
+                  f"~{ais.get('segundos', 60)} s listening window.</p>")
         seccao_ais = cab_ais + ("".join(cartoes_ais) or
-                                "<p class='vazio'>Sem navios AIS captados "
-                                "nesta janela de escuta.</p>")
+                                "<p class='vazio'>No AIS vessels captured "
+                                "in this listening window.</p>")
 
     resumo_html = (f"<p id='resumo-agora' class='resumo-agora'>{e(resumo_agora)}</p>"
                   if resumo_agora else "")
 
+    # --- secções condicionais: APL só em portos com apl=true; AIS só com
+    # ais_bbox no catálogo -------------------------------------------------
+    seccoes_apl = ""
+    if tem_apl:
+        seccoes_apl = f"""
+<section aria-labelledby="nav-titulo">
+ <h2 id="nav-titulo">Vessels (APL ETA/ETD) in the forecast window</h2>
+ {chips_filtro_html}
+ {''.join(cartoes)}
+</section>
+
+<section aria-labelledby="porto-titulo">
+ <h2 id="porto-titulo">In port now ({len(em_porto)})</h2>
+ {seccao_porto}
+</section>
+"""
+    seccao_ais_html = ""
+    if tem_ais:
+        seccao_ais_html = f"""
+<section aria-labelledby="ais-titulo">
+ <h2 id="ais-titulo">Live AIS snapshot</h2>
+ {seccao_ais}
+</section>
+"""
+
+    nome_pagina = f"{porto['bandeira']} {porto['nome']}"
+
     return f"""<!DOCTYPE html>
-<html lang="pt"><head>
+<html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="refresh" content="900">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#DCEBF1" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0D1720" media="(prefers-color-scheme: dark)">
-<meta name="description" content="Painel informativo de janelas de manobra na barra do Porto de Lisboa: cruza APL, Open-Meteo e regras editáveis — não substitui JUP, VTS nem o piloto.">
-<meta property="og:title" content="Janelas da Barra · Lisboa">
-<meta property="og:description" content="Timeline verde/âmbar/vermelho da barra de Lisboa, maré, vento e navios da APL — informativo, não operacional.">
+<meta name="description" content="Informal port approach windows for {e(porto['nome'])}: Open-Meteo forecast crossed with editable rules — not an operational tool.">
+<meta property="og:title" content="Port Approach Windows · {e(porto['nome'])}">
+<meta property="og:description" content="Green/amber/red approach timeline for {e(porto['nome'])}, tide and wind — informative, not operational.">
 <link rel="icon" href="{FAVICON_HREF}">
-<title>Janelas da Barra · Lisboa</title>
+<title>Port Approach Windows · {e(porto['nome'])}</title>
 <style>
  :root {{ --tinta:#1B2A38; --agua:#DCEBF1; --papel:#F7F5EF; --mag:#B0257C;
          --verde:#1E7A5A; --ambar:#E2B93B; --vermelho:#C0392B; }}
@@ -1381,18 +1423,20 @@ def gerar_html(previsao, avaliacoes, navios, apl, regras, ais=None) -> str:
 </style></head>
 <body>
 <header>
- <h1>Janelas da Barra — Lisboa</h1>
- <div class="sub">Atualizado: {agora} · APL + Open-Meteo Marine ·
- limiares em regras.toml</div>
+ <div class="sub"><a href="../index.html">← All ports</a></div>
+ <h1>{e(nome_pagina)}</h1>
+ <div class="sub">Updated at {agora} · Open-Meteo Marine{' + APL' if tem_apl else ''} ·
+ thresholds in regras.toml</div>
 </header>
-<div class="aviso" role="note">⚠ Ferramenta informativa. Não substitui JUP,
-VTS-Lisboa, Capitania nem o juízo profissional do piloto. Limiares a magenta
-são PLACEHOLDERS por validar.</div>
-{aviso_apl}
+<div class="aviso" role="note">⚠ Informal planning aid — NOT an operational tool.
+It does not replace port authorities, VTS, pilotage, official tide tables or
+local regulations. All thresholds are generic placeholders, not validated for
+any specific port.</div>
+{aviso_apl if tem_apl else ''}
 
-<main aria-label="Painel de janelas da barra">
+<main aria-label="Port approach windows panel">
 <section aria-labelledby="tl-titulo">
- <h2 id="tl-titulo">Próximas {len(celulas)} horas</h2>
+ <h2 id="tl-titulo">Next {len(celulas)} hours</h2>
  {resumo_html}
  <div class="scroll">
   <div class="marcadores-navios"{'' if por_indice else " aria-hidden='true'"}>{''.join(marcadores)}</div>
@@ -1403,49 +1447,34 @@ são PLACEHOLDERS por validar.</div>
  </div>
  <div id="detalhe" aria-live="polite" hidden></div>
  <div class="legenda">
-  <div>Toca ou navega por teclado numa hora para ver os detalhes.{legenda_mare}</div>
+  <div>Tap a cell or use the keyboard to see hourly details.{legenda_mare}</div>
   <div>
    <span class="legenda-item"><span class="dot" style="background:{COR[0]}"></span>GO</span>
-   <span class="legenda-item"><span class="dot" style="background:{COR[1]}"></span>GO condicional (~)</span>
+   <span class="legenda-item"><span class="dot" style="background:{COR[1]}"></span>conditional GO (~)</span>
    <span class="legenda-item"><span class="dot" style="background:{COR[2]}"></span>NO-GO (▲)</span>
-   <span class="legenda-item">faixa escura no topo = noite</span>
-   <span class="legenda-item">PM/BM = estofa (preia-mar/baixa-mar)</span>
-   <span class="legenda-item">▼ chegada · ▲ partida (marcador de navio)</span>
+   <span class="legenda-item">dark strip on top = night</span>
+   <span class="legenda-item">HW/LW = slack water (high/low water)</span>
+   <span class="legenda-item">▼ arrival · ▲ departure (vessel marker)</span>
   </div>
  </div>
  {seccao_mares}
 </section>
-
-<section aria-labelledby="nav-titulo">
- <h2 id="nav-titulo">Navios (ETA/ETD da APL) na janela prevista</h2>
- {chips_filtro_html}
- {''.join(cartoes)}
-</section>
-
-<section aria-labelledby="porto-titulo">
- <h2 id="porto-titulo">Em porto agora ({len(em_porto)})</h2>
- {seccao_porto}
-</section>
-
-<section aria-labelledby="ais-titulo">
- <h2 id="ais-titulo">No estuário agora (AIS)</h2>
- {seccao_ais}
-</section>
-
+{seccoes_apl}{seccao_ais_html}
 <section aria-labelledby="regras-titulo">
- <h2 id="regras-titulo">Regras em vigor</h2>
+ <h2 id="regras-titulo">Rules in force</h2>
  <div class="scroll">
- <table><thead><tr><th>Regra</th><th>Sentido</th><th>Âmbar</th>
- <th>Vermelho</th><th>Fonte</th></tr></thead>
+ <table><thead><tr><th>Rule</th><th>Direction</th><th>Amber</th>
+ <th>Red</th><th>Source</th></tr></thead>
  <tbody>{linhas_regras}</tbody></table>
  </div>
  <ul>{notas}</ul>
 </section>
 </main>
 
-<footer>Nível do mar: modelo Open-Meteo (não são as tabelas oficiais do
-Instituto Hidrográfico). Dados APL © Administração do Porto de Lisboa.
-Projeto pessoal, código aberto.</footer>
+<footer>All times are local port time. Sea level: Open-Meteo model (not an
+official tide table).{' APL data © Administração do Porto de Lisboa.' if tem_apl else ''}
+Threshold provenance notes ("source" column) are kept in Portuguese.
+Personal project, open source.</footer>
 {JS_PAINEL}
 </body></html>"""
 

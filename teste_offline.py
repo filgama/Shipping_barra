@@ -33,7 +33,7 @@ REGRAS = {
 # bbox AIS incluídas — como a de Lisboa), para os testes por-porto.
 PORTO_TESTE = {"slug": "teste", "nome": "Testport", "pais": "PT",
                "bandeira": "🏳", "latitude": 38.62, "longitude": -9.38,
-               "profundidade_zh": 15.0,
+               "profundidade_zh": 15.0, "apl": True,
                "ais_bbox": [[[38.35, -9.75], [38.95, -8.85]]]}
 
 
@@ -76,7 +76,7 @@ def teste_ukc():
     assert jb.avaliar_ukc(None, 0.5, REGRAS, profundidade_zh=15.0) is None
     # porto sem profundidade no catálogo -> avaliação "sem dados" (âmbar)
     sem_prof = jb.avaliar_ukc(8.0, 0.5, REGRAS)
-    assert sem_prof[0] == 1 and "sem dados" in sem_prof[1]
+    assert sem_prof[0] == 1 and "no reference depth" in sem_prof[1]
 
 
 def teste_ukc_margem_ondulacao():
@@ -88,7 +88,7 @@ def teste_ukc_margem_ondulacao():
     # mas o texto deve mostrar a margem e a folga reduzida
     com_onda = jb.avaliar_ukc(12.0, 0.5, REGRAS, onda_altura=3.0,
                               profundidade_zh=15.0)
-    assert "ondulação" in com_onda[1]
+    assert "swell allowance" in com_onda[1]
     assert "2.6 m" in com_onda[1]
     # Hs suficientemente alta degrada o estado: calado 13.0 sem ondulação é
     # ambar (folga 19,2%), com Hs=3.0 m passa a vermelho (folga eff. 12,3%)
@@ -164,8 +164,8 @@ def teste_cardeal_seta():
 def teste_html_timeline_interativa():
     prev = previsao_fixa()
     avals = [jb.avaliar_hora(h, REGRAS) for h in prev]
-    out = jb.gerar_html(prev, avals, [], {}, REGRAS)
-    assert "Ferramenta informativa" in out            # aviso obrigatório
+    out = jb.gerar_html_porto(PORTO_TESTE, prev, avals, [], {}, REGRAS)
+    assert "NOT an operational tool" in out           # aviso obrigatório
     assert 'id="detalhe"' in out
     assert "data-t='2026-07-18T00:00'" in out
     assert "data-estado='ambar'" in out               # horas 6–11
@@ -183,7 +183,7 @@ def teste_svg_mare():
     sem_dados = [dict(h, nivel_mar=None) for h in prev]
     assert jb.gerar_svg_mare(sem_dados) == ""
     avals = [jb.avaliar_hora(h, REGRAS) for h in prev]
-    assert "<svg" in jb.gerar_html(prev, avals, [], {}, REGRAS)
+    assert "<svg" in jb.gerar_html_porto(PORTO_TESTE, prev, avals, [], {}, REGRAS)
 
 
 def teste_filtrar_em_porto():
@@ -211,8 +211,8 @@ def teste_html_em_porto():
          "zona": "CAIS Y"}]}}
     prev = previsao_fixa()
     avals = [jb.avaliar_hora(h, REGRAS) for h in prev]
-    out = jb.gerar_html(prev, avals, [], apl, REGRAS)
-    assert "Em porto agora (1)" in out and "DELTA" in out
+    out = jb.gerar_html_porto(PORTO_TESTE, prev, avals, [], apl, REGRAS)
+    assert "In port now (1)" in out and "DELTA" in out
     assert "marinetraffic.com" in out          # nome do navio é link
 
 
@@ -223,12 +223,12 @@ def teste_resumo_janelas():
     estados = [1, 1, 1, 0, 0, 0, 0, 0, 0, 2, 0, 0]
     avals = [(s, []) for s in estados]
     frases = jb.resumo_janelas(prev, avals, agora=datetime(2026, 7, 18, 0, 0))
-    assert any("03h" in f and "6 h" in f and "GO contínua" in f for f in frases), frases
-    assert any("NO-GO" in f and "09h" in f for f in frases), frases
+    assert any("03:00" in f and "6 h" in f and "GO window" in f for f in frases), frases
+    assert any("NO-GO" in f and "09:00" in f for f in frases), frases
     # a partir da hora 9 (vermelho), a janela de 2h remanescente é curta
     # demais para ser anunciada
     frases2 = jb.resumo_janelas(prev, avals, agora=datetime(2026, 7, 18, 9, 0))
-    assert not any("GO contínua" in f for f in frases2), frases2
+    assert not any("GO window" in f for f in frases2), frases2
 
 
 def teste_avaliar_navio():
@@ -244,7 +244,7 @@ def teste_avaliar_navio():
         navio, prev, avals, REGRAS, estofas,
         profundidade_zh=PORTO_TESTE["profundidade_zh"])
     assert estado == 2 and idx == 6, (estado, idx)
-    assert any("UKC insuficiente" in m for m in motivos), motivos
+    assert any("insufficient UKC" in m for m in motivos), motivos
     # sem data reconhecida
     sem_data = {"nome": "X", "sentido": "entrada", "momento": None, "calado": None}
     assert jb.avaliar_navio(sem_data, prev, avals, REGRAS, estofas)[0] is None
@@ -260,7 +260,7 @@ def teste_html_marcadores_navios():
     navios = [{"nome": "ALFA", "sentido": "entrada",
               "momento": datetime(2026, 7, 18, 6, 0), "calado": 8.0,
               "tipo": "Carga", "zona": "", "imo": None}]
-    out = jb.gerar_html(prev, avals, navios, {}, REGRAS)
+    out = jb.gerar_html_porto(PORTO_TESTE, prev, avals, navios, {}, REGRAS)
     assert 'id="navio-1"' in out
     assert "nm-marca" in out and "data-alvo='navio-1'" in out
     assert 'aria-label="ALFA' in out
@@ -271,11 +271,11 @@ def teste_html_aviso_apl():
     prev = previsao_fixa()
     avals = [jb.avaliar_hora(h, REGRAS) for h in prev]
     apl = {"_erros": ["chegadas: timeout"]}
-    out = jb.gerar_html(prev, avals, [], apl, REGRAS)
-    assert "Dados APL indisponíveis" in out
+    out = jb.gerar_html_porto(PORTO_TESTE, prev, avals, [], apl, REGRAS)
+    assert "APL data unavailable" in out
     assert "chegadas: timeout" in out
-    out_ok = jb.gerar_html(prev, avals, [], {}, REGRAS)
-    assert "Dados APL indisponíveis" not in out_ok
+    out_ok = jb.gerar_html_porto(PORTO_TESTE, prev, avals, [], {}, REGRAS)
+    assert "APL data unavailable" not in out_ok
 
 
 def teste_ws_parse_frame():
@@ -348,25 +348,26 @@ def teste_html_ais_ativo():
                       "imo": "9638147", "destino": "LISBOA",
                       "loa": 200, "boca": 30, "calado": 8.2,
                       "distancia_mn": 3.4}]}
-    out = jb.gerar_html(prev, avals, [], {}, REGRAS, ais=ais)
-    assert 'id="ais-titulo"' in out and "No estuário agora" in out
-    assert "ALFA" in out and "3.4 MN da barra" in out
+    out = jb.gerar_html_porto(PORTO_TESTE, prev, avals, [], {}, REGRAS, ais=ais)
+    assert 'id="ais-titulo"' in out and "Live AIS snapshot" in out
+    assert "ALFA" in out and "3.4 NM off the entrance" in out
     assert "SOG 12.3 kn" in out
     assert "LOA >" not in out  # limiar não definido nesta REGRAS de teste
     reg_com_dim = dict(REGRAS, dimensoes={"loa_atracacao_estofa": 150.0})
-    out2 = jb.gerar_html(prev, avals, [], {}, reg_com_dim, ais=ais)
-    assert "LOA >150" in out2 and "estofa" in out2
+    out2 = jb.gerar_html_porto(PORTO_TESTE, prev, avals, [], {}, reg_com_dim,
+                               ais=ais)
+    assert "LOA >150" in out2 and "slack water" in out2
 
 
 def teste_html_ais_inativo():
     prev = previsao_fixa()
     avals = [jb.avaliar_hora(h, REGRAS) for h in prev]
-    out = jb.gerar_html(prev, avals, [], {}, REGRAS, ais=None)
-    assert "AIS inativo" in out and "AISSTREAM_KEY" in out
-    out_erro = jb.gerar_html(prev, avals, [], {}, REGRAS,
-                             ais={"erro": "timeout", "navios": [],
-                                  "quando": datetime.now(), "segundos": 60})
-    assert "Recolha AIS falhou" in out_erro and "timeout" in out_erro
+    out = jb.gerar_html_porto(PORTO_TESTE, prev, avals, [], {}, REGRAS, ais=None)
+    assert "AIS inactive" in out and "AISSTREAM_KEY" in out
+    out_erro = jb.gerar_html_porto(PORTO_TESTE, prev, avals, [], {}, REGRAS,
+                                   ais={"erro": "timeout", "navios": [],
+                                        "quando": datetime.now(), "segundos": 60})
+    assert "AIS capture failed" in out_erro and "timeout" in out_erro
 
 
 def teste_fusao_apl_ais():
@@ -378,8 +379,22 @@ def teste_fusao_apl_ais():
     ais = {"erro": None, "quando": datetime.now(), "segundos": 60,
            "navios": [{"mmsi": 111, "nome": "ALFA", "sog": 12.3, "cog": 45.0,
                       "imo": "9638147", "distancia_mn": 3.4}]}
-    out = jb.gerar_html(prev, avals, navios, {}, REGRAS, ais=ais)
-    assert "AIS: a 3.4 MN da barra, SOG 12.3 kn" in out
+    out = jb.gerar_html_porto(PORTO_TESTE, prev, avals, navios, {}, REGRAS,
+                              ais=ais)
+    assert "AIS: 3.4 NM off the entrance, SOG 12.3 kn" in out
+
+
+def teste_html_porto_sem_apl():
+    prev = previsao_fixa()
+    avals = [jb.avaliar_hora(h, REGRAS) for h in prev]
+    porto_min = {"slug": "rotterdam", "nome": "Rotterdam", "pais": "NL",
+                 "bandeira": "🇳🇱", "latitude": 51.98, "longitude": 4.05}
+    out = jb.gerar_html_porto(porto_min, prev, avals, [], {}, REGRAS)
+    assert "Rotterdam" in out and "Arrivals" not in out
+    assert "APL ETA/ETD" not in out and "In port now" not in out
+    assert "Live AIS snapshot" not in out
+    assert "NOT an operational tool" in out           # banner obrigatório
+    assert "All ports" in out                          # link para a landing
 
 
 def teste_carregar_portos():
@@ -395,7 +410,7 @@ def teste_carregar_portos():
 def teste_dark_mode():
     prev = previsao_fixa()
     avals = [jb.avaliar_hora(h, REGRAS) for h in prev]
-    out = jb.gerar_html(prev, avals, [], {}, REGRAS)
+    out = jb.gerar_html_porto(PORTO_TESTE, prev, avals, [], {}, REGRAS)
     assert "prefers-color-scheme: dark" in out
     assert out.count('name="theme-color"') == 2
 
@@ -410,7 +425,7 @@ TESTES = [teste_avaliar_hora_basico, teste_setor_circular, teste_ukc,
           teste_html_marcadores_navios, teste_html_aviso_apl,
           teste_ws_parse_frame, teste_haversine, teste_agregar_ais,
           teste_html_ais_ativo, teste_html_ais_inativo, teste_fusao_apl_ais,
-          teste_carregar_portos, teste_dark_mode]
+          teste_carregar_portos, teste_html_porto_sem_apl, teste_dark_mode]
 
 
 def main():
