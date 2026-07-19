@@ -1,0 +1,424 @@
+# portos.toml — catálogo de portos do painel.
+# Coordenadas = ponto de APROXIMAÇÃO ao porto (para a grelha Open-Meteo),
+# aproximadas (~±0,1°), por refinar; NÃO são limiares de decisão.
+# Campos opcionais: apl (API do Porto de Lisboa), ais_bbox (aisstream.io),
+# profundidade_zh (para UKC; PLACEHOLDER até confirmação em carta oficial).
+
+[[porto]]
+slug = "lisboa"
+nome = "Lisbon"
+pais = "PT"
+bandeira = "🇵🇹"
+latitude = 38.62
+longitude = -9.38
+apl = true
+ais_bbox = [[[38.35, -9.75], [38.95, -8.85]]]
+profundidade_zh = 15.0   # PLACEHOLDER — confirmar com carta IH
+
+[[porto]]
+slug = "leixoes"
+nome = "Leixões"
+pais = "PT"
+bandeira = "🇵🇹"
+latitude = 41.17
+longitude = -8.72
+
+[[porto]]
+slug = "sines"
+nome = "Sines"
+pais = "PT"
+bandeira = "🇵🇹"
+latitude = 37.93
+longitude = -8.88
+
+[[porto]]
+slug = "setubal"
+nome = "Setúbal"
+pais = "PT"
+bandeira = "🇵🇹"
+latitude = 38.48
+longitude = -8.93
+
+[[porto]]
+slug = "algeciras"
+nome = "Algeciras"
+pais = "ES"
+bandeira = "🇪🇸"
+latitude = 36.10
+longitude = -5.43
+
+[[porto]]
+slug = "valencia"
+nome = "Valencia"
+pais = "ES"
+bandeira = "🇪🇸"
+latitude = 39.43
+longitude = -0.30
+
+[[porto]]
+slug = "barcelona"
+nome = "Barcelona"
+pais = "ES"
+bandeira = "🇪🇸"
+latitude = 41.34
+longitude = 2.18
+
+[[porto]]
+slug = "bilbao"
+nome = "Bilbao"
+pais = "ES"
+bandeira = "🇪🇸"
+latitude = 43.37
+longitude = -3.05
+
+[[porto]]
+slug = "vigo"
+nome = "Vigo"
+pais = "ES"
+bandeira = "🇪🇸"
+latitude = 42.22
+longitude = -8.78
+
+[[porto]]
+slug = "las-palmas"
+nome = "Las Palmas"
+pais = "ES"
+bandeira = "🇪🇸"
+latitude = 28.13
+longitude = -15.40
+
+[[porto]]
+slug = "le-havre"
+nome = "Le Havre"
+pais = "FR"
+bandeira = "🇫🇷"
+latitude = 49.47
+longitude = 0.05
+
+[[porto]]
+slug = "marseille"
+nome = "Marseille"
+pais = "FR"
+bandeira = "🇫🇷"
+latitude = 43.28
+longitude = 5.33
+
+[[porto]]
+slug = "dunkirk"
+nome = "Dunkirk"
+pais = "FR"
+bandeira = "🇫🇷"
+latitude = 51.05
+longitude = 2.35
+
+[[porto]]
+slug = "saint-nazaire"
+nome = "Saint-Nazaire"
+pais = "FR"
+bandeira = "🇫🇷"
+latitude = 47.25
+longitude = -2.30
+
+[[porto]]
+slug = "antwerp"
+nome = "Antwerp"
+pais = "BE"
+bandeira = "🇧🇪"
+latitude = 51.40
+longitude = 3.55
+
+[[porto]]
+slug = "zeebrugge"
+nome = "Zeebrugge"
+pais = "BE"
+bandeira = "🇧🇪"
+latitude = 51.35
+longitude = 3.18
+
+[[porto]]
+slug = "rotterdam"
+nome = "Rotterdam"
+pais = "NL"
+bandeira = "🇳🇱"
+latitude = 51.98
+longitude = 4.05
+
+[[porto]]
+slug = "amsterdam"
+nome = "Amsterdam (IJmuiden)"
+pais = "NL"
+bandeira = "🇳🇱"
+latitude = 52.47
+longitude = 4.53
+
+[[porto]]
+slug = "hamburg"
+nome = "Hamburg"
+pais = "DE"
+bandeira = "🇩🇪"
+latitude = 53.98
+longitude = 8.65
+
+[[porto]]
+slug = "bremerhaven"
+nome = "Bremerhaven"
+pais = "DE"
+bandeira = "🇩🇪"
+latitude = 53.87
+longitude = 8.45
+
+[[porto]]
+slug = "wilhelmshaven"
+nome = "Wilhelmshaven"
+pais = "DE"
+bandeira = "🇩🇪"
+latitude = 53.62
+longitude = 8.05
+
+[[porto]]
+slug = "aarhus"
+nome = "Aarhus"
+pais = "DK"
+bandeira = "🇩🇰"
+latitude = 56.15
+longitude = 10.25
+
+[[porto]]
+slug = "copenhagen"
+nome = "Copenhagen"
+pais = "DK"
+bandeira = "🇩🇰"
+latitude = 55.70
+longitude = 12.65
+
+[[porto]]
+slug = "oslo"
+nome = "Oslo"
+pais = "NO"
+bandeira = "🇳🇴"
+latitude = 59.05
+longitude = 10.55
+
+[[porto]]
+slug = "bergen"
+nome = "Bergen"
+pais = "NO"
+bandeira = "🇳🇴"
+latitude = 60.40
+longitude = 5.30
+
+[[porto]]
+slug = "gothenburg"
+nome = "Gothenburg"
+pais = "SE"
+bandeira = "🇸🇪"
+latitude = 57.65
+longitude = 11.75
+
+[[porto]]
+slug = "stockholm"
+nome = "Stockholm"
+pais = "SE"
+bandeira = "🇸🇪"
+latitude = 59.35
+longitude = 18.90
+
+[[porto]]
+slug = "helsinki"
+nome = "Helsinki"
+pais = "FI"
+bandeira = "🇫🇮"
+latitude = 60.12
+longitude = 24.95
+
+[[porto]]
+slug = "tallinn"
+nome = "Tallinn"
+pais = "EE"
+bandeira = "🇪🇪"
+latitude = 59.47
+longitude = 24.75
+
+[[porto]]
+slug = "riga"
+nome = "Riga"
+pais = "LV"
+bandeira = "🇱🇻"
+latitude = 57.05
+longitude = 24.02
+
+[[porto]]
+slug = "klaipeda"
+nome = "Klaipėda"
+pais = "LT"
+bandeira = "🇱🇹"
+latitude = 55.72
+longitude = 21.08
+
+[[porto]]
+slug = "gdansk"
+nome = "Gdańsk"
+pais = "PL"
+bandeira = "🇵🇱"
+latitude = 54.42
+longitude = 18.70
+
+[[porto]]
+slug = "gdynia"
+nome = "Gdynia"
+pais = "PL"
+bandeira = "🇵🇱"
+latitude = 54.55
+longitude = 18.57
+
+[[porto]]
+slug = "felixstowe"
+nome = "Felixstowe"
+pais = "GB"
+bandeira = "🇬🇧"
+latitude = 51.93
+longitude = 1.35
+
+[[porto]]
+slug = "southampton"
+nome = "Southampton"
+pais = "GB"
+bandeira = "🇬🇧"
+latitude = 50.78
+longitude = -1.30
+
+[[porto]]
+slug = "london-gateway"
+nome = "London Gateway"
+pais = "GB"
+bandeira = "🇬🇧"
+latitude = 51.50
+longitude = 0.90
+
+[[porto]]
+slug = "liverpool"
+nome = "Liverpool"
+pais = "GB"
+bandeira = "🇬🇧"
+latitude = 53.45
+longitude = -3.10
+
+[[porto]]
+slug = "immingham"
+nome = "Immingham"
+pais = "GB"
+bandeira = "🇬🇧"
+latitude = 53.63
+longitude = 0.20
+
+[[porto]]
+slug = "dublin"
+nome = "Dublin"
+pais = "IE"
+bandeira = "🇮🇪"
+latitude = 53.34
+longitude = -6.10
+
+[[porto]]
+slug = "genoa"
+nome = "Genoa"
+pais = "IT"
+bandeira = "🇮🇹"
+latitude = 44.38
+longitude = 8.92
+
+[[porto]]
+slug = "trieste"
+nome = "Trieste"
+pais = "IT"
+bandeira = "🇮🇹"
+latitude = 45.62
+longitude = 13.75
+
+[[porto]]
+slug = "livorno"
+nome = "Livorno"
+pais = "IT"
+bandeira = "🇮🇹"
+latitude = 43.55
+longitude = 10.28
+
+[[porto]]
+slug = "naples"
+nome = "Naples"
+pais = "IT"
+bandeira = "🇮🇹"
+latitude = 40.82
+longitude = 14.25
+
+[[porto]]
+slug = "gioia-tauro"
+nome = "Gioia Tauro"
+pais = "IT"
+bandeira = "🇮🇹"
+latitude = 38.43
+longitude = 15.88
+
+[[porto]]
+slug = "piraeus"
+nome = "Piraeus"
+pais = "GR"
+bandeira = "🇬🇷"
+latitude = 37.92
+longitude = 23.60
+
+[[porto]]
+slug = "thessaloniki"
+nome = "Thessaloniki"
+pais = "GR"
+bandeira = "🇬🇷"
+latitude = 40.58
+longitude = 22.92
+
+[[porto]]
+slug = "marsaxlokk"
+nome = "Marsaxlokk"
+pais = "MT"
+bandeira = "🇲🇹"
+latitude = 35.82
+longitude = 14.55
+
+[[porto]]
+slug = "limassol"
+nome = "Limassol"
+pais = "CY"
+bandeira = "🇨🇾"
+latitude = 34.65
+longitude = 33.02
+
+[[porto]]
+slug = "koper"
+nome = "Koper"
+pais = "SI"
+bandeira = "🇸🇮"
+latitude = 45.55
+longitude = 13.72
+
+[[porto]]
+slug = "rijeka"
+nome = "Rijeka"
+pais = "HR"
+bandeira = "🇭🇷"
+latitude = 45.30
+longitude = 14.40
+
+[[porto]]
+slug = "constanta"
+nome = "Constanța"
+pais = "RO"
+bandeira = "🇷🇴"
+latitude = 44.15
+longitude = 28.68
+
+[[porto]]
+slug = "varna"
+nome = "Varna"
+pais = "BG"
+bandeira = "🇧🇬"
+latitude = 43.18
+longitude = 27.95

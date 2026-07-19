@@ -1,5 +1,5 @@
 # =============================================================================
-# REGRAS.TOML — Janelas da Barra (Porto de Lisboa)
+# REGRAS.TOML — motor de regras (limiares genéricos, todos os portos)
 # =============================================================================
 # CADA NÚMERO NESTE FICHEIRO TEM UMA "fonte". Há três tipos:
 #   "APL/Capitania"  -> vem de regulamento/edital público (referenciar qual)
@@ -7,21 +7,13 @@
 #   "PLACEHOLDER"    -> valor inventado como defeito conservador.
 #                       TEM DE SER VALIDADO POR UM PILOTO ANTES DE CONFIAR.
 #
+# Os dados de CATÁLOGO por porto (coordenadas, APL, AIS bbox, profundidade
+# de referência do canal) já não vivem aqui — ver portos.toml. Este ficheiro
+# guarda só os limiares do motor de regras, partilhados por todos os portos
+# (ainda genéricos/PLACEHOLDER, não calibrados por porto — ver Roadmap).
+#
 # Para afinar a app: edita os números, mantém a fonte atualizada. Mais nada.
 # =============================================================================
-
-[local]
-# Ponto de avaliação meteo-mar: aproximação à Barra Sul (a validar)
-latitude = 38.62
-longitude = -9.38
-nome = "Aproximação Barra Sul"
-fonte = "PLACEHOLDER — coordenada aproximada, validar com piloto"
-
-[canal]
-# Profundidade de referência do canal da Barra Sul, em metros abaixo do ZH.
-# NOTA: valor ilustrativo. Confirmar com carta náutica IH / APL.
-profundidade_zh = 15.0
-fonte = "PLACEHOLDER — confirmar com carta do IH e dragagens APL"
 
 [ukc]
 # Folga sob a quilha mínima como fração do calado (UKC estático simplificado).

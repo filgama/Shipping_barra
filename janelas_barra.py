@@ -81,6 +81,27 @@ def carregar_regras() -> dict:
         return tomllib.load(f)
 
 
+def carregar_portos() -> list[dict]:
+    """Lê portos.toml e valida o catálogo. Campos obrigatórios por porto:
+    slug, nome, pais, bandeira, latitude, longitude. Slugs únicos."""
+    with open(RAIZ / "portos.toml", "rb") as f:
+        dados = tomllib.load(f)
+    portos = dados.get("porto", [])
+    if not portos:
+        raise ValueError("portos.toml sem entradas [[porto]]")
+    obrigatorios = ("slug", "nome", "pais", "bandeira",
+                    "latitude", "longitude")
+    vistos = set()
+    for p in portos:
+        for campo in obrigatorios:
+            if campo not in p:
+                raise ValueError(f"porto sem campo '{campo}': {p}")
+        if p["slug"] in vistos:
+            raise ValueError(f"slug duplicado em portos.toml: {p['slug']}")
+        vistos.add(p["slug"])
+    return portos
+
+
 # ---------------------------------------------------------------------------
 # Meteo-mar (Open-Meteo — sem chave)
 # ---------------------------------------------------------------------------
@@ -90,12 +111,14 @@ def _get_json(url: str) -> dict:
         return json.loads(r.read().decode())
 
 
-def recolher_meteomar(regras: dict, horas: int) -> list[dict]:
+def recolher_meteomar(porto: dict, horas: int) -> list[dict]:
     """Lista de dicts por hora: tempo, onda_altura, swell_*, nivel_mar,
     vento_kn, rajada_kn, vento_dir, corrente_kn, corrente_dir,
-    visibilidade_m, e_dia."""
-    lat = regras["local"]["latitude"]
-    lon = regras["local"]["longitude"]
+    visibilidade_m, e_dia. `porto` é uma entrada do catálogo portos.toml
+    (usa latitude/longitude); pede timezone=auto às duas APIs Open-Meteo
+    para que as horas devolvidas fiquem na hora local de CADA porto."""
+    lat = porto["latitude"]
+    lon = porto["longitude"]
     dias = max(2, min(7, (horas // 24) + 1))
 
     marine = _get_json(
@@ -104,7 +127,7 @@ def recolher_meteomar(regras: dict, horas: int) -> list[dict]:
         "&hourly=wave_height,wave_direction,wave_period,"
         "swell_wave_height,swell_wave_direction,swell_wave_period,"
         "sea_level_height_msl,ocean_current_velocity,ocean_current_direction"
-        f"&timezone=Europe%2FLisbon&forecast_days={dias}"
+        f"&timezone=auto&forecast_days={dias}"
     )
     vento = _get_json(
         "https://api.open-meteo.com/v1/forecast"
@@ -112,7 +135,7 @@ def recolher_meteomar(regras: dict, horas: int) -> list[dict]:
         "&hourly=wind_speed_10m,wind_gusts_10m,wind_direction_10m,"
         "visibility,is_day"
         "&wind_speed_unit=kn"
-        f"&timezone=Europe%2FLisbon&forecast_days={dias}"
+        f"&timezone=auto&forecast_days={dias}"
     )
 
     hm, hv = marine["hourly"], vento["hourly"]
@@ -189,16 +212,26 @@ def avaliar_hora(hora: dict, regras: dict) -> tuple[int, list[str]]:
     return estado, motivos
 
 
-def avaliar_ukc(calado: float, nivel_mar, regras: dict, onda_altura=None):
+def avaliar_ukc(calado: float, nivel_mar, regras: dict, onda_altura=None,
+                profundidade_zh=None):
     """UKC estático simplificado. nivel_mar da Open-Meteo é relativo ao MSL;
     usamos profundidade ZH + nível como aproximação de altura de água.
+    `profundidade_zh` vem do catálogo portos.toml (campo opcional por
+    porto) — já não é lido de regras["canal"], que deixou de existir.
     Se `onda_altura` (Hs) for fornecida, subtrai à folga uma margem de
     ondulação (fração empírica configurável em regras.toml, aproximação tipo
     PIANC de resposta vertical do navio à ondulação). Devolve (estado, texto)
-    ou None se faltar informação."""
+    ou None se faltar calado/nível. Se faltar `profundidade_zh` (porto sem o
+    dado no catálogo), devolve o mesmo formato (estado, texto) mas com uma
+    avaliação "sem dados" — o chamador só passa profundidade_zh quando o
+    porto a tem; o argumento existe aqui para o comportamento ser explícito
+    e testável."""
     if calado is None or nivel_mar is None:
         return None
-    prof = regras["canal"]["profundidade_zh"]
+    if profundidade_zh is None:
+        return 1, ("UKC não avaliado: sem dados de profundidade de "
+                   "referência (profundidade_zh) para este porto")
+    prof = profundidade_zh
     altura_agua = prof + nivel_mar
     folga = altura_agua - calado
     if calado <= 0:
@@ -270,12 +303,15 @@ def detetar_estofas(previsao: list[dict], regras: dict) -> list[dict]:
 
 
 def avaliar_navio(n: dict, previsao: list[dict], avaliacoes: list[tuple],
-                   regras: dict, estofas: list[dict]):
+                   regras: dict, estofas: list[dict], profundidade_zh=None):
     """Avalia um navio cruzando a hora da ETA/ETD com a previsão/regras
     (UKC + regras por tipo) e a proximidade a uma estofa. Partilhada pelos
     cartões e pelos marcadores da timeline — para não duplicar a lógica.
-    Devolve (estado, motivos, nota_estofa, idx_na_previsao); estado é None
-    se não houver hora reconhecida ou esta cair fora do horizonte."""
+    `profundidade_zh` vem do catálogo portos.toml (só a APL/navios de
+    Lisboa a fornecem por agora); sem ela, avaliar_ukc devolve "sem dados"
+    em vez de crashar. Devolve (estado, motivos, nota_estofa,
+    idx_na_previsao); estado é None se não houver hora reconhecida ou esta
+    cair fora do horizonte."""
     if n["momento"] is None:
         return None, ["sem data reconhecida na tabela APL"], None, None
     alvo = n["momento"].strftime("%Y-%m-%dT%H:00")
@@ -285,7 +321,7 @@ def avaliar_navio(n: dict, previsao: list[dict], avaliacoes: list[tuple],
     estado_n, motivos_n = avaliacoes[idx]
     motivos_n = list(motivos_n) or ["condições dentro dos limiares"]
     ukc = avaliar_ukc(n["calado"], previsao[idx]["nivel_mar"], regras,
-                      previsao[idx].get("onda_altura"))
+                      previsao[idx].get("onda_altura"), profundidade_zh)
     if ukc:
         estado_n = max(estado_n, ukc[0])
         motivos_n.append(ukc[1])
@@ -380,10 +416,10 @@ def cardeal_seta(graus) -> tuple[str, str]:
 # socket/ssl/base64/hashlib/struct), porque aisstream.io só fala WebSocket.
 
 AIS_URL = "wss://stream.aisstream.io/v0/stream"
-# Caixa geográfica da aproximação à Barra Sul + estuário do Tejo — filtro
-# TÉCNICO de subscrição (não é um limiar de decisão náutica), no mesmo
-# espírito de JANELA_PORTO_DIAS acima.
-AIS_BBOX = [[[38.35, -9.75], [38.95, -8.85]]]
+# A caixa geográfica de subscrição já não é uma constante fixa da Barra Sul:
+# vem de porto["ais_bbox"] (catálogo portos.toml, campo opcional — só
+# Lisboa a tem por agora). Filtro TÉCNICO de subscrição (não é um limiar de
+# decisão náutica), no mesmo espírito de JANELA_PORTO_DIAS acima.
 _WS_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
 
@@ -523,11 +559,12 @@ def _haversine_mn(lat1, lon1, lat2, lon2) -> float:
     return 2 * r * math.asin(math.sqrt(a)) / 1852.0
 
 
-def _agregar_ais(mensagens: list[dict], local: dict) -> list[dict]:
+def _agregar_ais(mensagens: list[dict], porto: dict) -> list[dict]:
     """Agrega mensagens AIS (PositionReport + ShipStaticData, formato
     aisstream.io) por MMSI, fundindo posição e ficha estática. Devolve uma
-    lista de navios ordenada por distância a `local` (latitude/longitude).
-    Função pura — testável offline com fixtures JSON sintéticas."""
+    lista de navios ordenada por distância a `porto` (entrada do catálogo
+    portos.toml — usa latitude/longitude). Função pura — testável offline
+    com fixtures JSON sintéticas."""
     navios: dict = {}
     for msg in mensagens:
         meta = msg.get("MetaData") or {}
@@ -564,7 +601,7 @@ def _agregar_ais(mensagens: list[dict], local: dict) -> list[dict]:
                 nv["loa"] = a + b
             if c is not None and d is not None:
                 nv["boca"] = c + d
-    lat0, lon0 = local["latitude"], local["longitude"]
+    lat0, lon0 = porto["latitude"], porto["longitude"]
     out = []
     for nv in navios.values():
         nv.setdefault("nome", f"MMSI {nv['mmsi']}")
@@ -577,13 +614,15 @@ def _agregar_ais(mensagens: list[dict], local: dict) -> list[dict]:
     return out
 
 
-def recolher_ais(chave: str, regras: dict, segundos: int = 60) -> dict:
-    """Snapshot AIS de ~`segundos` via aisstream.io. Nunca lança exceção —
-    qualquer falha (rede, handshake, chave inválida) vira `erro` no dict
-    devolvido, para o painel degradar com um aviso em vez de crashar."""
+def recolher_ais(chave: str, porto: dict, segundos: int = 60) -> dict:
+    """Snapshot AIS de ~`segundos` via aisstream.io, na caixa geográfica
+    `porto["ais_bbox"]` (catálogo portos.toml — só quem a tem chama isto).
+    Nunca lança exceção — qualquer falha (rede, handshake, chave inválida)
+    vira `erro` no dict devolvido, para o painel degradar com um aviso em
+    vez de crashar."""
     quando = datetime.now()
     try:
-        subscricao = {"APIKey": chave, "BoundingBoxes": AIS_BBOX,
+        subscricao = {"APIKey": chave, "BoundingBoxes": porto["ais_bbox"],
                       "FilterMessageTypes": ["PositionReport", "ShipStaticData"]}
         brutos = _ws_recv_json(AIS_URL, subscricao, float(segundos))
         mensagens = []
@@ -592,7 +631,7 @@ def recolher_ais(chave: str, regras: dict, segundos: int = 60) -> dict:
                 mensagens.append(json.loads(b.decode("utf-8")))
             except (UnicodeDecodeError, json.JSONDecodeError):
                 continue
-        navios = _agregar_ais(mensagens, regras["local"])
+        navios = _agregar_ais(mensagens, porto)
         return {"navios": navios, "erro": None, "quando": quando,
                "segundos": segundos}
     except Exception as exc:

@@ -8,7 +8,6 @@ from datetime import datetime, timedelta
 import janelas_barra as jb
 
 REGRAS = {
-    "canal": {"profundidade_zh": 15.0},
     "ukc": {"folga_minima_pct": 0.15, "folga_ambar_pct": 0.30,
             "margem_ondulacao_frac": 0.3},
     "estofa": {"janela_min": 45},
@@ -29,6 +28,13 @@ REGRAS = {
          "fonte": "PLACEHOLDER"},
     ],
 }
+
+# Entrada sintética do catálogo portos.toml (profundidade de referência e
+# bbox AIS incluídas — como a de Lisboa), para os testes por-porto.
+PORTO_TESTE = {"slug": "teste", "nome": "Testport", "pais": "PT",
+               "bandeira": "🏳", "latitude": 38.62, "longitude": -9.38,
+               "profundidade_zh": 15.0,
+               "ais_bbox": [[[38.35, -9.75], [38.95, -8.85]]]}
 
 
 def previsao_fixa() -> list[dict]:
@@ -62,30 +68,37 @@ def teste_setor_circular():
 
 
 def teste_ukc():
-    # profundidade 15.0 + nível 0.5 = 15.5 m de água
-    assert jb.avaliar_ukc(8.0, 0.5, REGRAS)[0] == 0    # folga 94 %
-    assert jb.avaliar_ukc(12.0, 0.5, REGRAS)[0] == 1   # folga 29 % < 30 %
-    assert jb.avaliar_ukc(13.5, 0.5, REGRAS)[0] == 2   # folga 14.8 % < 15 %
-    assert jb.avaliar_ukc(None, 0.5, REGRAS) is None
+    # profundidade 15.0 (agora argumento, vinda do catálogo portos.toml)
+    # + nível 0.5 = 15.5 m de água
+    assert jb.avaliar_ukc(8.0, 0.5, REGRAS, profundidade_zh=15.0)[0] == 0
+    assert jb.avaliar_ukc(12.0, 0.5, REGRAS, profundidade_zh=15.0)[0] == 1
+    assert jb.avaliar_ukc(13.5, 0.5, REGRAS, profundidade_zh=15.0)[0] == 2
+    assert jb.avaliar_ukc(None, 0.5, REGRAS, profundidade_zh=15.0) is None
+    # porto sem profundidade no catálogo -> avaliação "sem dados" (âmbar)
+    sem_prof = jb.avaliar_ukc(8.0, 0.5, REGRAS)
+    assert sem_prof[0] == 1 and "sem dados" in sem_prof[1]
 
 
 def teste_ukc_margem_ondulacao():
     # calado 12.0: sem ondulação folga 29% -> ambar (estado 1)
-    sem_onda = jb.avaliar_ukc(12.0, 0.5, REGRAS)
+    sem_onda = jb.avaliar_ukc(12.0, 0.5, REGRAS, profundidade_zh=15.0)
     assert sem_onda[0] == 1
     # com Hs alta (3.0 m), margem = 0.3*3.0 = 0.9 m subtraída à folga
     # folga bruta 3.5 m -> folga efetiva 2.6 m / 12.0 = 21.7% -> ainda ambar,
     # mas o texto deve mostrar a margem e a folga reduzida
-    com_onda = jb.avaliar_ukc(12.0, 0.5, REGRAS, onda_altura=3.0)
+    com_onda = jb.avaliar_ukc(12.0, 0.5, REGRAS, onda_altura=3.0,
+                              profundidade_zh=15.0)
     assert "ondulação" in com_onda[1]
     assert "2.6 m" in com_onda[1]
     # Hs suficientemente alta degrada o estado: calado 13.0 sem ondulação é
     # ambar (folga 19,2%), com Hs=3.0 m passa a vermelho (folga eff. 12,3%)
-    assert jb.avaliar_ukc(13.0, 0.5, REGRAS)[0] == 1
-    pior = jb.avaliar_ukc(13.0, 0.5, REGRAS, onda_altura=3.0)
+    assert jb.avaliar_ukc(13.0, 0.5, REGRAS, profundidade_zh=15.0)[0] == 1
+    pior = jb.avaliar_ukc(13.0, 0.5, REGRAS, onda_altura=3.0,
+                          profundidade_zh=15.0)
     assert pior[0] == 2
     # sem onda_altura, comportamento inalterado (compatibilidade)
-    assert jb.avaliar_ukc(8.0, 0.5, REGRAS, onda_altura=None)[0] == 0
+    assert jb.avaliar_ukc(8.0, 0.5, REGRAS, onda_altura=None,
+                          profundidade_zh=15.0)[0] == 0
 
 
 def teste_sentido_abaixo():
@@ -227,7 +240,9 @@ def teste_avaliar_navio():
     navio = {"nome": "TESTE", "sentido": "entrada",
              "momento": datetime(2026, 7, 18, 6, 0), "calado": 14.0,
              "tipo": "Carga"}
-    estado, motivos, nota, idx = jb.avaliar_navio(navio, prev, avals, REGRAS, estofas)
+    estado, motivos, nota, idx = jb.avaliar_navio(
+        navio, prev, avals, REGRAS, estofas,
+        profundidade_zh=PORTO_TESTE["profundidade_zh"])
     assert estado == 2 and idx == 6, (estado, idx)
     assert any("UKC insuficiente" in m for m in motivos), motivos
     # sem data reconhecida
@@ -296,7 +311,7 @@ def teste_haversine():
 
 
 def teste_agregar_ais():
-    local = {"latitude": 38.62, "longitude": -9.38}
+    porto = PORTO_TESTE
     mensagens = [
         {"MessageType": "PositionReport",
          "MetaData": {"MMSI": 111, "ShipName": "ALFA",
@@ -316,7 +331,7 @@ def teste_agregar_ais():
          "Message": {"PositionReport": {"Sog": 5.0, "Cog": 200.0,
                                         "Latitude": 38.90, "Longitude": -8.90}}},
     ]
-    navios = jb._agregar_ais(mensagens, local)
+    navios = jb._agregar_ais(mensagens, porto)
     assert [n["mmsi"] for n in navios] == [111, 222]   # ordenado por distância
     alfa = navios[0]
     assert alfa["nome"] == "ALFA" and alfa["sog"] == 12.3 and alfa["cog"] == 45.0
@@ -367,6 +382,16 @@ def teste_fusao_apl_ais():
     assert "AIS: a 3.4 MN da barra, SOG 12.3 kn" in out
 
 
+def teste_carregar_portos():
+    portos = jb.carregar_portos()
+    assert len(portos) >= 45
+    slugs = [p["slug"] for p in portos]
+    assert len(slugs) == len(set(slugs))
+    lisboa = next(p for p in portos if p["slug"] == "lisboa")
+    assert lisboa.get("apl") is True and lisboa.get("ais_bbox")
+    assert all("latitude" in p and "longitude" in p for p in portos)
+
+
 def teste_dark_mode():
     prev = previsao_fixa()
     avals = [jb.avaliar_hora(h, REGRAS) for h in prev]
@@ -385,7 +410,7 @@ TESTES = [teste_avaliar_hora_basico, teste_setor_circular, teste_ukc,
           teste_html_marcadores_navios, teste_html_aviso_apl,
           teste_ws_parse_frame, teste_haversine, teste_agregar_ais,
           teste_html_ais_ativo, teste_html_ais_inativo, teste_fusao_apl_ais,
-          teste_dark_mode]
+          teste_carregar_portos, teste_dark_mode]
 
 
 def main():
