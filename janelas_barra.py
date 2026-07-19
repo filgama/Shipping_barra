@@ -272,8 +272,7 @@ def avaliar_ukc(calado: float, nivel_mar, regras: dict, onda_altura=None,
     if calado is None or nivel_mar is None:
         return None
     if profundidade_zh is None:
-        return 1, ("UKC not assessed: no reference depth "
-                   "(profundidade_zh) for this port")
+        return 1, "UKC not assessed: no reference depth configured for this port"
     prof = profundidade_zh
     altura_agua = prof + nivel_mar
     folga = altura_agua - calado
