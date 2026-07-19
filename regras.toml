@@ -29,7 +29,20 @@ fonte = "PLACEHOLDER — confirmar com carta do IH e dragagens APL"
 # por squat e resposta vertical à ondulação.
 folga_minima_pct = 0.10
 folga_ambar_pct = 0.15
+# Margem de ondulação: fração da Hs subtraída à folga como aproximação
+# empírica (tipo "wave response allowance" do PIANC) da resposta vertical do
+# navio à ondulação — não é um cálculo de squat dinâmico real.
+margem_ondulacao_frac = 0.3
 fonte = "PIANC/prática — validar critério local com piloto"
+
+[estofa]
+# Janela informativa em torno da PM/BM para atracação de navios grandes
+# (>150 m), referida no doc de análise. NÃO altera o estado do painel — é
+# apenas informativo: a estofa DA CORRENTE (que interessa à manobra) não
+# coincide necessariamente com a PM/BM do NÍVEL modelado, e o desfasamento
+# local (Barra Sul / bacias / cais) não está calibrado nesta app.
+janela_min = 45
+fonte = "PLACEHOLDER — doc de análise refere ±45 min da estofa para atracação de navios >150 m, por confirmar com piloto/Capitania"
 
 # --- Regras horárias (aplicadas à previsão hora a hora) ----------------------
 # Estados: verde (sem restrição), ambar (atenção), vermelho (janela má).
@@ -77,6 +90,49 @@ parametro = "rajada_kn"
 ambar = 35.0
 vermelho = 45.0
 fonte = "PLACEHOLDER — validar com piloto"
+
+[[regra]]
+id = "visibilidade"
+descricao = "Visibilidade horizontal"
+parametro = "visibilidade_m"
+# Limiar INVERTIDO: mau quando o valor está ABAIXO do limiar (sentido = "abaixo").
+sentido = "abaixo"
+ambar = 3704.0    # ~2 milhas náuticas
+vermelho = 1852.0 # ~1 milha náutica
+fonte = "PLACEHOLDER — doc de análise cita 1 MN como limiar típico de suspensão de manobras por nevoeiro; artigo do edital da Capitania por confirmar"
+
+[[regra]]
+id = "corrente"
+descricao = "Corrente na aproximação"
+parametro = "corrente_kn"
+ambar = 2.0
+vermelho = 3.0
+# O doc de análise refere 0.5-1.0 nós de popa como limite na fase de
+# atracação, mas isso é um critério por berço/manobra que esta app não tem
+# dados para avaliar; este limiar é para a corrente geral na aproximação à
+# barra (mais permissivo, gate de primeiro nível).
+fonte = "PLACEHOLDER — validar com piloto"
+
+[[regra]]
+id = "embarque_piloto"
+descricao = "Embarque do piloto (Hs na zona de embarque)"
+parametro = "onda_altura"
+ambar = 2.5
+vermelho = 3.0
+fonte = "PLACEHOLDER — doc de análise secção 5.2: acima de ~2.5-3 m de Hs a lancha dos pilotos tipicamente não opera; gate de primeiro nível, por confirmar"
+
+# --- Regras por tipo de navio -------------------------------------------------
+# `tipos`: lista de substrings (case-insensitive) procuradas no campo `tipo`
+# do navio (nv_tipoNavio da APL). `parametro`: campo horário avaliado; para
+# vento usa-se também a rajada, se disponível, e considera-se o pior dos dois.
+
+[[regra_navio]]
+id = "roro_vento"
+tipos = ["ro-ro", "roro", "ro/ro"]
+parametro = "vento_kn"
+vermelho = 20.0
+descricao = "Regulamento APL: RO-RO interdito com vento > 20 kn"
+fonte = "PLACEHOLDER — citado no doc de análise como regra do Regulamento de Exploração da APL, artigo por confirmar"
 
 [notas_regulamentares]
 # Informação qualitativa (não numérica) mostrada no painel, com fonte pública.

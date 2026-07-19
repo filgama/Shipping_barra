@@ -3,57 +3,89 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="refresh" content="900">
+<meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#DCEBF1" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0D1720" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2032%2032%27%3E%3Ccircle%20cx%3D%2716%27%20cy%3D%2716%27%20r%3D%2714%27%20fill%3D%27%231E7A5A%27/%3E%3Cpath%20d%3D%27M16%202a14%2014%200%200%201%200%2028z%27%20fill%3D%27%23E2B93B%27/%3E%3Ccircle%20cx%3D%2716%27%20cy%3D%2716%27%20r%3D%2714%27%20fill%3D%27none%27%20stroke%3D%27%231B2A38%27%20stroke-width%3D%272%27/%3E%3C/svg%3E">
 <title>Janelas da Barra · Lisboa</title>
 <style>
- :root { --tinta:#1B2A38; --agua:#DCEBF1; --papel:#F7F5EF; --mag:#B0257C; }
+ :root { --tinta:#1B2A38; --agua:#DCEBF1; --papel:#F7F5EF; --mag:#B0257C;
+         --verde:#1E7A5A; --ambar:#E2B93B; --vermelho:#C0392B; }
  * { box-sizing:border-box; }
+ html { scroll-behavior:smooth; }
  body { margin:0; background:var(--agua); color:var(--tinta);
-        font-family:system-ui,-apple-system,sans-serif; }
+        font-family:system-ui,-apple-system,sans-serif; line-height:1.4; }
  header { padding:16px 16px 8px; }
  h1 { margin:0; font-size:24px; }
  .sub { font-size:12px; color:#5C6E7C; margin-top:4px; }
  .aviso { background:var(--tinta); color:var(--papel); font-size:12px;
           padding:8px 16px; }
+ main { display:block; max-width:720px; margin:0 auto; }
  section { background:var(--papel); border:2px solid var(--tinta);
            border-radius:12px; margin:12px; padding:12px; }
  h2 { font-size:16px; margin:0 0 8px; }
+ .resumo-agora { margin:0 0 10px; font-size:14px; font-weight:600;
+                 padding:8px 10px; background:var(--agua);
+                 border-radius:8px; border:1px solid var(--tinta); }
  .scroll { overflow-x:auto; padding-bottom:6px; }
  .timeline { display:flex; gap:2px; }
+ button.cel { border:none; font:inherit; color:#fff; cursor:pointer;
+              padding:0; -webkit-tap-highlight-color:transparent; }
+ .cel:focus-visible { outline:3px solid var(--tinta); outline-offset:2px;
+                       position:relative; z-index:1; }
  .cel.agora { outline:3px solid var(--mag); outline-offset:-1px; }
  .cel.sel { box-shadow:inset 0 0 0 2px var(--tinta); }
- .cel-a .hh, .cel-a .dia { color:#1B2A38; }
+ .cel-a, .cel-a .hh, .cel-a .dia, .cel-a .glifo, .cel-a .marca-estofa {
+   color:#1B2A38; }
+ .cel-noite { filter:saturate(.55) brightness(.88); }
+ .cel-noite::before { content:''; position:absolute; top:0; left:0;
+                       right:0; height:3px; background:rgba(0,0,0,.35); }
  #detalhe { margin-top:8px; padding:8px 10px; border:1.5px dashed var(--tinta);
-            border-radius:8px; font-size:13px; line-height:1.45; }
+            border-radius:8px; font-size:13px; line-height:1.5; }
+ #detalhe .det-cab { margin-bottom:4px; }
+ #detalhe .det-mot { margin-bottom:4px; }
+ #detalhe .det-linha { font-size:12px; }
  .mare { display:block; }
  .mare-linha { fill:none; stroke:#3B7EA1; stroke-width:2; }
  .mare-rot { font-size:9px; fill:currentColor; }
  .mare-msl { stroke:#5C6E7C; stroke-dasharray:3 3; }
- .cel { min-width:22px; height:46px; border-radius:4px; position:relative;
-        color:#fff; }
+ .cel { min-width:24px; height:54px; border-radius:4px; position:relative; }
  .cel .hh { position:absolute; bottom:2px; left:0; right:0;
             text-align:center; font-size:9px; opacity:.9; }
  .cel .dia { position:absolute; top:2px; left:0; right:0; text-align:center;
              font-size:9px; font-weight:700; }
+ .cel .glifo { position:absolute; top:2px; right:3px; font-size:9px; }
+ .cel .marca-estofa { position:absolute; bottom:15px; left:0; right:0;
+                       text-align:center; font-size:7px; font-weight:700;
+                       letter-spacing:.02em; }
  .legenda { font-size:11px; color:#5C6E7C; margin-top:6px; }
+ .legenda-item { display:inline-block; margin-right:10px; }
  .dot { display:inline-block; width:9px; height:9px; border-radius:50%;
-        margin:0 3px 0 8px; }
+        margin:0 3px 0 0; vertical-align:-1px; }
  .navio { display:flex; gap:10px; padding:10px 0;
           border-bottom:1px solid #D7DFE4; }
  .navio:last-child { border-bottom:none; }
  .farol { flex:0 0 12px; height:12px; border-radius:50%; margin-top:4px; }
+ .navio-corpo { min-width:0; flex:1; }
+ .nnome-linha { display:flex; flex-wrap:wrap; align-items:baseline; gap:6px; }
  .nnome { font-weight:600; font-size:15px; }
+ .nestado { font-size:11px; font-weight:700; color:#5C6E7C; }
  .nmeta { font-size:12px; color:#5C6E7C; }
- .nmot { font-size:12px; margin-top:2px; }
- table { border-collapse:collapse; width:100%; font-size:12px; }
+ .chips { margin-top:4px; display:flex; flex-wrap:wrap; gap:4px; }
+ .chip { font-size:11px; background:var(--agua); border:1px solid #B9C6CF;
+         border-radius:999px; padding:1px 8px; white-space:nowrap; }
+ .nmot { font-size:12px; margin:4px 0 0; padding-left:16px; }
+ .nmot li { margin-bottom:2px; }
+ table { border-collapse:collapse; width:100%; font-size:12px;
+         min-width:480px; }
  th,td { border:1px solid #B9C6CF; padding:5px 6px; text-align:left; }
  th { background:var(--tinta); color:var(--papel); }
  .fonte-ph { color:var(--mag); font-weight:600; }
  .fonte-ok { color:#1E7A5A; }
  ul { margin:6px 0 0; padding-left:18px; font-size:12px; }
  .vazio { color:#5C6E7C; font-style:italic; font-size:13px; }
- footer { font-size:11px; color:#5C6E7C; padding:0 16px 20px; }
+ footer { font-size:11px; color:#5C6E7C; padding:0 16px 20px;
+          max-width:720px; margin:0 auto; }
  @media (prefers-color-scheme: dark) {
   :root { --tinta:#E6EDF3; --agua:#0D1720; --papel:#15222D; --mag:#E464AE; }
   section { border-color:#33475A; }
@@ -63,299 +95,365 @@
   .aviso { background:#15222D; color:#E6EDF3;
            border-bottom:1px solid #33475A; }
   .fonte-ok { color:#4CC38A; }
+  .chip { border-color:#33475A; }
+ }
+ @media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior:auto; }
+  * { animation-duration:0.01ms !important; animation-iteration-count:1 !important;
+      transition-duration:0.01ms !important; scroll-behavior:auto !important; }
  }
 </style></head>
 <body>
 <header>
  <h1>Janelas da Barra — Lisboa</h1>
- <div class="sub">Atualizado: 18/07/2026 22:07 · APL + Open-Meteo Marine ·
+ <div class="sub">Atualizado: 19/07/2026 11:12 · APL + Open-Meteo Marine ·
  limiares em regras.toml</div>
 </header>
-<div class="aviso">⚠ Ferramenta informativa. Não substitui JUP, VTS-Lisboa,
-Capitania nem o juízo profissional do piloto. Limiares a magenta são
-PLACEHOLDERS por validar.</div>
+<div class="aviso" role="note">⚠ Ferramenta informativa. Não substitui JUP,
+VTS-Lisboa, Capitania nem o juízo profissional do piloto. Limiares a magenta
+são PLACEHOLDERS por validar.</div>
 
-<section>
- <h2>Próximas 72 horas</h2>
+<main aria-label="Painel de janelas da barra">
+<section aria-labelledby="tl-titulo">
+ <h2 id="tl-titulo">Próximas 72 horas</h2>
+ <p id='resumo-agora' class='resumo-agora'>Agora: GO — condições dentro dos limiares</p>
  <div class="scroll">
-  <div class="timeline"><div class='cel' style='background:#1E7A5A' title="18/07 00h — verde · swell 0.32 m WNW↘ 3.45 s · nível -1.76 m · vento 7.9 kn NNW↓ (raj 16.5)" data-t='2026-07-18T00:00' data-estado='verde' data-motivos="" data-vals="swell 0.32 m WNW↘ 3.45 s · nível -1.76 m · vento 7.9 kn NNW↓ (raj 16.5)"><span class='dia'>18</span><span class='hh'>00</span></div><div class='cel' style='background:#1E7A5A' title="18/07 01h — verde · swell 0.34 m WNW↘ 3.6 s · nível -1.46 m · vento 7.2 kn NNW↓ (raj 14.8)" data-t='2026-07-18T01:00' data-estado='verde' data-motivos="" data-vals="swell 0.34 m WNW↘ 3.6 s · nível -1.46 m · vento 7.2 kn NNW↓ (raj 14.8)"><span class='hh'>01</span></div><div class='cel' style='background:#1E7A5A' title="18/07 02h — verde · swell 0.36 m WNW↘ 3.55 s · nível -0.91 m · vento 6.4 kn NNW↓ (raj 13.2)" data-t='2026-07-18T02:00' data-estado='verde' data-motivos="" data-vals="swell 0.36 m WNW↘ 3.55 s · nível -0.91 m · vento 6.4 kn NNW↓ (raj 13.2)"><span class='hh'>02</span></div><div class='cel' style='background:#1E7A5A' title="18/07 03h — verde · swell 0.38 m WNW↘ 3.5 s · nível -0.24 m · vento 5.4 kn NNW↓ (raj 10.9)" data-t='2026-07-18T03:00' data-estado='verde' data-motivos="" data-vals="swell 0.38 m WNW↘ 3.5 s · nível -0.24 m · vento 5.4 kn NNW↓ (raj 10.9)"><span class='hh'>03</span></div><div class='cel' style='background:#1E7A5A' title="18/07 04h — verde · swell 0.4 m NW↘ 3.4 s · nível +0.36 m · vento 5 kn NNW↓ (raj 9.9)" data-t='2026-07-18T04:00' data-estado='verde' data-motivos="" data-vals="swell 0.4 m NW↘ 3.4 s · nível +0.36 m · vento 5 kn NNW↓ (raj 9.9)"><span class='hh'>04</span></div><div class='cel' style='background:#1E7A5A' title="18/07 05h — verde · swell 0.42 m NW↘ 3.3 s · nível +0.74 m · vento 4 kn NNW↘ (raj 8.7)" data-t='2026-07-18T05:00' data-estado='verde' data-motivos="" data-vals="swell 0.42 m NW↘ 3.3 s · nível +0.74 m · vento 4 kn NNW↘ (raj 8.7)"><span class='hh'>05</span></div><div class='cel' style='background:#1E7A5A' title="18/07 06h — verde · swell 0.42 m NW↘ 3.15 s · nível +0.8 m · vento 3 kn NNW↘ (raj 6.4)" data-t='2026-07-18T06:00' data-estado='verde' data-motivos="" data-vals="swell 0.42 m NW↘ 3.15 s · nível +0.8 m · vento 3 kn NNW↘ (raj 6.4)"><span class='hh'>06</span></div><div class='cel' style='background:#1E7A5A' title="18/07 07h — verde · swell 0.44 m NW↘ 3.2 s · nível +0.53 m · vento 3.5 kn NNW↘ (raj 4.7)" data-t='2026-07-18T07:00' data-estado='verde' data-motivos="" data-vals="swell 0.44 m NW↘ 3.2 s · nível +0.53 m · vento 3.5 kn NNW↘ (raj 4.7)"><span class='hh'>07</span></div><div class='cel' style='background:#1E7A5A' title="18/07 08h — verde · swell 0.4 m WNW↘ 3.55 s · nível +0 m · vento 3.8 kn NNW↓ (raj 6.4)" data-t='2026-07-18T08:00' data-estado='verde' data-motivos="" data-vals="swell 0.4 m WNW↘ 3.55 s · nível +0 m · vento 3.8 kn NNW↓ (raj 6.4)"><span class='hh'>08</span></div><div class='cel' style='background:#1E7A5A' title="18/07 09h — verde · swell 0.38 m WNW↘ 4.05 s · nível -0.63 m · vento 5.8 kn NNW↘ (raj 11.5)" data-t='2026-07-18T09:00' data-estado='verde' data-motivos="" data-vals="swell 0.38 m WNW↘ 4.05 s · nível -0.63 m · vento 5.8 kn NNW↘ (raj 11.5)"><span class='hh'>09</span></div><div class='cel' style='background:#1E7A5A' title="18/07 10h — verde · swell 0.34 m WNW→ 4.5 s · nível -1.18 m · vento 7.4 kn NW↘ (raj 14.8)" data-t='2026-07-18T10:00' data-estado='verde' data-motivos="" data-vals="swell 0.34 m WNW→ 4.5 s · nível -1.18 m · vento 7.4 kn NW↘ (raj 14.8)"><span class='hh'>10</span></div><div class='cel' style='background:#1E7A5A' title="18/07 11h — verde · swell 0.3 m WNW↘ 4.95 s · nível -1.51 m · vento 8.3 kn NW↘ (raj 16.5)" data-t='2026-07-18T11:00' data-estado='verde' data-motivos="" data-vals="swell 0.3 m WNW↘ 4.95 s · nível -1.51 m · vento 8.3 kn NW↘ (raj 16.5)"><span class='hh'>11</span></div><div class='cel' style='background:#1E7A5A' title="18/07 12h — verde · swell 0.24 m WNW↘ 5.35 s · nível -1.56 m · vento 8.9 kn NW↘ (raj 18.1)" data-t='2026-07-18T12:00' data-estado='verde' data-motivos="" data-vals="swell 0.24 m WNW↘ 5.35 s · nível -1.56 m · vento 8.9 kn NW↘ (raj 18.1)"><span class='hh'>12</span></div><div class='cel' style='background:#1E7A5A' title="18/07 13h — verde · swell 0.2 m NW↘ 5.55 s · nível -1.3 m · vento 9.8 kn NW↘ (raj 21)" data-t='2026-07-18T13:00' data-estado='verde' data-motivos="" data-vals="swell 0.2 m NW↘ 5.55 s · nível -1.3 m · vento 9.8 kn NW↘ (raj 21)"><span class='hh'>13</span></div><div class='cel' style='background:#1E7A5A' title="18/07 14h — verde · swell 0.22 m WNW↘ 5.3 s · nível -0.8 m · vento 10.7 kn NW↘ (raj 21.8)" data-t='2026-07-18T14:00' data-estado='verde' data-motivos="" data-vals="swell 0.22 m WNW↘ 5.3 s · nível -0.8 m · vento 10.7 kn NW↘ (raj 21.8)"><span class='hh'>14</span></div><div class='cel' style='background:#1E7A5A' title="18/07 15h — verde · swell 0.24 m WNW→ 4.9 s · nível -0.16 m · vento 11 kn NW↘ (raj 22.2)" data-t='2026-07-18T15:00' data-estado='verde' data-motivos="" data-vals="swell 0.24 m WNW→ 4.9 s · nível -0.16 m · vento 11 kn NW↘ (raj 22.2)"><span class='hh'>15</span></div><div class='cel' style='background:#1E7A5A' title="18/07 16h — verde · swell 0.26 m W→ 4.9 s · nível +0.46 m · vento 11 kn NW↘ (raj 22.2)" data-t='2026-07-18T16:00' data-estado='verde' data-motivos="" data-vals="swell 0.26 m W→ 4.9 s · nível +0.46 m · vento 11 kn NW↘ (raj 22.2)"><span class='hh'>16</span></div><div class='cel' style='background:#1E7A5A' title="18/07 17h — verde · swell 0.24 m W→ 5.95 s · nível +0.91 m · vento 11.3 kn NW↘ (raj 22.5)" data-t='2026-07-18T17:00' data-estado='verde' data-motivos="" data-vals="swell 0.24 m W→ 5.95 s · nível +0.91 m · vento 11.3 kn NW↘ (raj 22.5)"><span class='hh'>17</span></div><div class='cel' style='background:#1E7A5A' title="18/07 18h — verde · swell 0.24 m W→ 7.45 s · nível +1.06 m · vento 11.6 kn NW↘ (raj 22.9)" data-t='2026-07-18T18:00' data-estado='verde' data-motivos="" data-vals="swell 0.24 m W→ 7.45 s · nível +1.06 m · vento 11.6 kn NW↘ (raj 22.9)"><span class='hh'>18</span></div><div class='cel' style='background:#1E7A5A' title="18/07 19h — verde · swell 0.22 m W→ 8.3 s · nível +0.88 m · vento 11 kn NW↘ (raj 23.1)" data-t='2026-07-18T19:00' data-estado='verde' data-motivos="" data-vals="swell 0.22 m W→ 8.3 s · nível +0.88 m · vento 11 kn NW↘ (raj 23.1)"><span class='hh'>19</span></div><div class='cel' style='background:#1E7A5A' title="18/07 20h — verde · swell 0.26 m W→ 7.9 s · nível +0.4 m · vento 10.3 kn NNW↘ (raj 21.8)" data-t='2026-07-18T20:00' data-estado='verde' data-motivos="" data-vals="swell 0.26 m W→ 7.9 s · nível +0.4 m · vento 10.3 kn NNW↘ (raj 21.8)"><span class='hh'>20</span></div><div class='cel' style='background:#1E7A5A' title="18/07 21h — verde · swell 0.3 m W→ 6.9 s · nível -0.25 m · vento 9.5 kn NNW↘ (raj 20.2)" data-t='2026-07-18T21:00' data-estado='verde' data-motivos="" data-vals="swell 0.3 m W→ 6.9 s · nível -0.25 m · vento 9.5 kn NNW↘ (raj 20.2)"><span class='hh'>21</span></div><div class='cel' style='background:#1E7A5A' title="18/07 22h — verde · swell 0.34 m W→ 5.9 s · nível -0.89 m · vento 8.6 kn NNW↘ (raj 18.1)" data-t='2026-07-18T22:00' data-estado='verde' data-motivos="" data-vals="swell 0.34 m W→ 5.9 s · nível -0.89 m · vento 8.6 kn NNW↘ (raj 18.1)"><span class='hh'>22</span></div><div class='cel' style='background:#1E7A5A' title="18/07 23h — verde · swell 0.42 m WNW→ 5.15 s · nível -1.38 m · vento 7.4 kn NNW↘ (raj 15.9)" data-t='2026-07-18T23:00' data-estado='verde' data-motivos="" data-vals="swell 0.42 m WNW→ 5.15 s · nível -1.38 m · vento 7.4 kn NNW↘ (raj 15.9)"><span class='hh'>23</span></div><div class='cel' style='background:#1E7A5A' title="19/07 00h — verde · swell 0.48 m WNW↘ 4.4 s · nível -1.61 m · vento 6.8 kn NNW↘ (raj 13.8)" data-t='2026-07-19T00:00' data-estado='verde' data-motivos="" data-vals="swell 0.48 m WNW↘ 4.4 s · nível -1.61 m · vento 6.8 kn NNW↘ (raj 13.8)"><span class='dia'>19</span><span class='hh'>00</span></div><div class='cel' style='background:#1E7A5A' title="19/07 01h — verde · swell 0.56 m NW↘ 3.95 s · nível -1.54 m · vento 6.3 kn NNW↘ (raj 12.2)" data-t='2026-07-19T01:00' data-estado='verde' data-motivos="" data-vals="swell 0.56 m NW↘ 3.95 s · nível -1.54 m · vento 6.3 kn NNW↘ (raj 12.2)"><span class='hh'>01</span></div><div class='cel' style='background:#1E7A5A' title="19/07 02h — verde · swell 0.56 m NW↘ 3.9 s · nível -1.2 m · vento 5.5 kn NNW↘ (raj 11.5)" data-t='2026-07-19T02:00' data-estado='verde' data-motivos="" data-vals="swell 0.56 m NW↘ 3.9 s · nível -1.2 m · vento 5.5 kn NNW↘ (raj 11.5)"><span class='hh'>02</span></div><div class='cel' style='background:#1E7A5A' title="19/07 03h — verde · swell 0.56 m NW↘ 4.1 s · nível -0.68 m · vento 4.2 kn NNW↘ (raj 10.1)" data-t='2026-07-19T03:00' data-estado='verde' data-motivos="" data-vals="swell 0.56 m NW↘ 4.1 s · nível -0.68 m · vento 4.2 kn NNW↘ (raj 10.1)"><span class='hh'>03</span></div><div class='cel' style='background:#1E7A5A' title="19/07 04h — verde · swell 0.56 m NW↘ 4.2 s · nível -0.09 m · vento 4.7 kn NW↘ (raj 8.2)" data-t='2026-07-19T04:00' data-estado='verde' data-motivos="" data-vals="swell 0.56 m NW↘ 4.2 s · nível -0.09 m · vento 4.7 kn NW↘ (raj 8.2)"><span class='hh'>04</span></div><div class='cel' style='background:#1E7A5A' title="19/07 05h — verde · swell 0.58 m NW↘ 4.1 s · nível +0.39 m · vento 4 kn NW↘ (raj 8.4)" data-t='2026-07-19T05:00' data-estado='verde' data-motivos="" data-vals="swell 0.58 m NW↘ 4.1 s · nível +0.39 m · vento 4 kn NW↘ (raj 8.4)"><span class='hh'>05</span></div><div class='cel' style='background:#1E7A5A' title="19/07 06h — verde · swell 0.58 m NW↘ 3.95 s · nível +0.66 m · vento 4.2 kn NW↘ (raj 7.4)" data-t='2026-07-19T06:00' data-estado='verde' data-motivos="" data-vals="swell 0.58 m NW↘ 3.95 s · nível +0.66 m · vento 4.2 kn NW↘ (raj 7.4)"><span class='hh'>06</span></div><div class='cel' style='background:#1E7A5A' title="19/07 07h — verde · swell 0.6 m NW↘ 3.85 s · nível +0.64 m · vento 4.3 kn NW↘ (raj 8)" data-t='2026-07-19T07:00' data-estado='verde' data-motivos="" data-vals="swell 0.6 m NW↘ 3.85 s · nível +0.64 m · vento 4.3 kn NW↘ (raj 8)"><span class='hh'>07</span></div><div class='cel' style='background:#1E7A5A' title="19/07 08h — verde · swell 0.62 m NW↘ 3.95 s · nível +0.33 m · vento 4.7 kn NW↘ (raj 8.6)" data-t='2026-07-19T08:00' data-estado='verde' data-motivos="" data-vals="swell 0.62 m NW↘ 3.95 s · nível +0.33 m · vento 4.7 kn NW↘ (raj 8.6)"><span class='hh'>08</span></div><div class='cel' style='background:#1E7A5A' title="19/07 09h — verde · swell 0.62 m NW↘ 4.15 s · nível -0.17 m · vento 6.6 kn NW↘ (raj 13.6)" data-t='2026-07-19T09:00' data-estado='verde' data-motivos="" data-vals="swell 0.62 m NW↘ 4.15 s · nível -0.17 m · vento 6.6 kn NW↘ (raj 13.6)"><span class='hh'>09</span></div><div class='cel' style='background:#1E7A5A' title="19/07 10h — verde · swell 0.64 m NW↘ 4.3 s · nível -0.72 m · vento 7.6 kn NW↘ (raj 15.6)" data-t='2026-07-19T10:00' data-estado='verde' data-motivos="" data-vals="swell 0.64 m NW↘ 4.3 s · nível -0.72 m · vento 7.6 kn NW↘ (raj 15.6)"><span class='hh'>10</span></div><div class='cel' style='background:#1E7A5A' title="19/07 11h — verde · swell 0.62 m NW↘ 4.4 s · nível -1.16 m · vento 8.3 kn NW↘ (raj 16.9)" data-t='2026-07-19T11:00' data-estado='verde' data-motivos="" data-vals="swell 0.62 m NW↘ 4.4 s · nível -1.16 m · vento 8.3 kn NW↘ (raj 16.9)"><span class='hh'>11</span></div><div class='cel' style='background:#1E7A5A' title="19/07 12h — verde · swell 0.6 m NW↘ 4.4 s · nível -1.4 m · vento 8.5 kn NW↘ (raj 17.7)" data-t='2026-07-19T12:00' data-estado='verde' data-motivos="" data-vals="swell 0.6 m NW↘ 4.4 s · nível -1.4 m · vento 8.5 kn NW↘ (raj 17.7)"><span class='hh'>12</span></div><div class='cel' style='background:#1E7A5A' title="19/07 13h — verde · swell 0.58 m NW↘ 4.5 s · nível -1.38 m · vento 9.3 kn NW↘ (raj 19)" data-t='2026-07-19T13:00' data-estado='verde' data-motivos="" data-vals="swell 0.58 m NW↘ 4.5 s · nível -1.38 m · vento 9.3 kn NW↘ (raj 19)"><span class='hh'>13</span></div><div class='cel' style='background:#1E7A5A' title="19/07 14h — verde · swell 0.54 m NW↘ 4.65 s · nível -1.1 m · vento 9.9 kn NW↘ (raj 20.2)" data-t='2026-07-19T14:00' data-estado='verde' data-motivos="" data-vals="swell 0.54 m NW↘ 4.65 s · nível -1.1 m · vento 9.9 kn NW↘ (raj 20.2)"><span class='hh'>14</span></div><div class='cel' style='background:#1E7A5A' title="19/07 15h — verde · swell 0.52 m NNW↘ 4.8 s · nível -0.63 m · vento 10.5 kn NW↘ (raj 21.2)" data-t='2026-07-19T15:00' data-estado='verde' data-motivos="" data-vals="swell 0.52 m NNW↘ 4.8 s · nível -0.63 m · vento 10.5 kn NW↘ (raj 21.2)"><span class='hh'>15</span></div><div class='cel' style='background:#1E7A5A' title="19/07 16h — verde · swell 0.48 m NNW↘ 4.95 s · nível -0.08 m · vento 10.6 kn NW↘ (raj 21.6)" data-t='2026-07-19T16:00' data-estado='verde' data-motivos="" data-vals="swell 0.48 m NNW↘ 4.95 s · nível -0.08 m · vento 10.6 kn NW↘ (raj 21.6)"><span class='hh'>16</span></div><div class='cel' style='background:#1E7A5A' title="19/07 17h — verde · swell 0.46 m NNW↘ 4.95 s · nível +0.43 m · vento 10.9 kn NW↘ (raj 21.8)" data-t='2026-07-19T17:00' data-estado='verde' data-motivos="" data-vals="swell 0.46 m NNW↘ 4.95 s · nível +0.43 m · vento 10.9 kn NW↘ (raj 21.8)"><span class='hh'>17</span></div><div class='cel' style='background:#1E7A5A' title="19/07 18h — verde · swell 0.44 m NNW↘ 4.9 s · nível +0.76 m · vento 10.8 kn NW↘ (raj 21.8)" data-t='2026-07-19T18:00' data-estado='verde' data-motivos="" data-vals="swell 0.44 m NNW↘ 4.9 s · nível +0.76 m · vento 10.8 kn NW↘ (raj 21.8)"><span class='hh'>18</span></div><div class='cel' style='background:#1E7A5A' title="19/07 19h — verde · swell 0.42 m NNW↘ 4.95 s · nível +0.82 m · vento 10.5 kn NW↘ (raj 21.4)" data-t='2026-07-19T19:00' data-estado='verde' data-motivos="" data-vals="swell 0.42 m NNW↘ 4.95 s · nível +0.82 m · vento 10.5 kn NW↘ (raj 21.4)"><span class='hh'>19</span></div><div class='cel' style='background:#1E7A5A' title="19/07 20h — verde · swell 0.42 m NW↘ 5.2 s · nível +0.6 m · vento 10 kn NW↘ (raj 20.8)" data-t='2026-07-19T20:00' data-estado='verde' data-motivos="" data-vals="swell 0.42 m NW↘ 5.2 s · nível +0.6 m · vento 10 kn NW↘ (raj 20.8)"><span class='hh'>20</span></div><div class='cel' style='background:#1E7A5A' title="19/07 21h — verde · swell 0.42 m NW↘ 5.55 s · nível +0.14 m · vento 8 kn NW↘ (raj 19.6)" data-t='2026-07-19T21:00' data-estado='verde' data-motivos="" data-vals="swell 0.42 m NW↘ 5.55 s · nível +0.14 m · vento 8 kn NW↘ (raj 19.6)"><span class='hh'>21</span></div><div class='cel' style='background:#1E7A5A' title="19/07 22h — verde · swell 0.42 m WNW↘ 5.8 s · nível -0.42 m · vento 5.5 kn NW↘ (raj 15)" data-t='2026-07-19T22:00' data-estado='verde' data-motivos="" data-vals="swell 0.42 m WNW↘ 5.8 s · nível -0.42 m · vento 5.5 kn NW↘ (raj 15)"><span class='hh'>22</span></div><div class='cel' style='background:#1E7A5A' title="19/07 23h — verde · swell 0.46 m WNW↘ 5.8 s · nível -0.94 m · vento 4.7 kn NW↘ (raj 9.9)" data-t='2026-07-19T23:00' data-estado='verde' data-motivos="" data-vals="swell 0.46 m WNW↘ 5.8 s · nível -0.94 m · vento 4.7 kn NW↘ (raj 9.9)"><span class='hh'>23</span></div><div class='cel' style='background:#1E7A5A' title="20/07 00h — verde · swell 0.48 m WNW↘ 5.75 s · nível -1.3 m · vento 3.7 kn WNW↘ (raj 7.2)" data-t='2026-07-20T00:00' data-estado='verde' data-motivos="" data-vals="swell 0.48 m WNW↘ 5.75 s · nível -1.3 m · vento 3.7 kn WNW↘ (raj 7.2)"><span class='dia'>20</span><span class='hh'>00</span></div><div class='cel' style='background:#1E7A5A' title="20/07 01h — verde · swell 0.52 m WNW↘ 5.55 s · nível -1.42 m · vento 3.9 kn WNW→ (raj 7.4)" data-t='2026-07-20T01:00' data-estado='verde' data-motivos="" data-vals="swell 0.52 m WNW↘ 5.55 s · nível -1.42 m · vento 3.9 kn WNW→ (raj 7.4)"><span class='hh'>01</span></div><div class='cel' style='background:#1E7A5A' title="20/07 02h — verde · swell 0.54 m NW↘ 5.25 s · nível -1.3 m · vento 4.1 kn WNW↘ (raj 7.8)" data-t='2026-07-20T02:00' data-estado='verde' data-motivos="" data-vals="swell 0.54 m NW↘ 5.25 s · nível -1.3 m · vento 4.1 kn WNW↘ (raj 7.8)"><span class='hh'>02</span></div><div class='cel' style='background:#1E7A5A' title="20/07 03h — verde · swell 0.56 m NW↘ 4.85 s · nível -0.97 m · vento 4.6 kn WNW↘ (raj 8.6)" data-t='2026-07-20T03:00' data-estado='verde' data-motivos="" data-vals="swell 0.56 m NW↘ 4.85 s · nível -0.97 m · vento 4.6 kn WNW↘ (raj 8.6)"><span class='hh'>03</span></div><div class='cel' style='background:#1E7A5A' title="20/07 04h — verde · swell 0.58 m NW↘ 4.6 s · nível -0.51 m · vento 4.2 kn NW↘ (raj 8.2)" data-t='2026-07-20T04:00' data-estado='verde' data-motivos="" data-vals="swell 0.58 m NW↘ 4.6 s · nível -0.51 m · vento 4.2 kn NW↘ (raj 8.2)"><span class='hh'>04</span></div><div class='cel' style='background:#1E7A5A' title="20/07 05h — verde · swell 0.6 m NW↘ 4.55 s · nível -0.03 m · vento 4 kn NW↘ (raj 6.6)" data-t='2026-07-20T05:00' data-estado='verde' data-motivos="" data-vals="swell 0.6 m NW↘ 4.55 s · nível -0.03 m · vento 4 kn NW↘ (raj 6.6)"><span class='hh'>05</span></div><div class='cel' style='background:#1E7A5A' title="20/07 06h — verde · swell 0.62 m NW↘ 4.55 s · nível +0.34 m · vento 5 kn NW↘ (raj 7.8)" data-t='2026-07-20T06:00' data-estado='verde' data-motivos="" data-vals="swell 0.62 m NW↘ 4.55 s · nível +0.34 m · vento 5 kn NW↘ (raj 7.8)"><span class='hh'>06</span></div><div class='cel' style='background:#1E7A5A' title="20/07 07h — verde · swell 0.64 m NW↘ 4.65 s · nível +0.51 m · vento 4 kn NW↘ (raj 7.8)" data-t='2026-07-20T07:00' data-estado='verde' data-motivos="" data-vals="swell 0.64 m NW↘ 4.65 s · nível +0.51 m · vento 4 kn NW↘ (raj 7.8)"><span class='hh'>07</span></div><div class='cel' style='background:#1E7A5A' title="20/07 08h — verde · swell 0.64 m NW↘ 4.75 s · nível +0.44 m · vento 4.3 kn NW↘ (raj 8.6)" data-t='2026-07-20T08:00' data-estado='verde' data-motivos="" data-vals="swell 0.64 m NW↘ 4.75 s · nível +0.44 m · vento 4.3 kn NW↘ (raj 8.6)"><span class='hh'>08</span></div><div class='cel' style='background:#1E7A5A' title="20/07 09h — verde · swell 0.66 m NNW↘ 4.9 s · nível +0.14 m · vento 6 kn NW↘ (raj 11.9)" data-t='2026-07-20T09:00' data-estado='verde' data-motivos="" data-vals="swell 0.66 m NNW↘ 4.9 s · nível +0.14 m · vento 6 kn NW↘ (raj 11.9)"><span class='hh'>09</span></div><div class='cel' style='background:#1E7A5A' title="20/07 10h — verde · swell 0.66 m NNW↘ 5 s · nível -0.3 m · vento 6.8 kn NW↘ (raj 14)" data-t='2026-07-20T10:00' data-estado='verde' data-motivos="" data-vals="swell 0.66 m NNW↘ 5 s · nível -0.3 m · vento 6.8 kn NW↘ (raj 14)"><span class='hh'>10</span></div><div class='cel' style='background:#1E7A5A' title="20/07 11h — verde · swell 0.68 m NNW↘ 5.1 s · nível -0.75 m · vento 7.5 kn NW↘ (raj 15.6)" data-t='2026-07-20T11:00' data-estado='verde' data-motivos="" data-vals="swell 0.68 m NNW↘ 5.1 s · nível -0.75 m · vento 7.5 kn NW↘ (raj 15.6)"><span class='hh'>11</span></div><div class='cel' style='background:#1E7A5A' title="20/07 12h — verde · swell 0.68 m NNW↘ 5.2 s · nível -1.09 m · vento 8.4 kn NW↘ (raj 17.1)" data-t='2026-07-20T12:00' data-estado='verde' data-motivos="" data-vals="swell 0.68 m NNW↘ 5.2 s · nível -1.09 m · vento 8.4 kn NW↘ (raj 17.1)"><span class='hh'>12</span></div><div class='cel' style='background:#1E7A5A' title="20/07 13h — verde · swell 0.7 m NNW↘ 5.3 s · nível -1.24 m · vento 9.3 kn NW↘ (raj 18.7)" data-t='2026-07-20T13:00' data-estado='verde' data-motivos="" data-vals="swell 0.7 m NNW↘ 5.3 s · nível -1.24 m · vento 9.3 kn NW↘ (raj 18.7)"><span class='hh'>13</span></div><div class='cel' style='background:#1E7A5A' title="20/07 14h — verde · swell 0.68 m NNW↘ 5.4 s · nível -1.17 m · vento 10 kn WNW↘ (raj 20.2)" data-t='2026-07-20T14:00' data-estado='verde' data-motivos="" data-vals="swell 0.68 m NNW↘ 5.4 s · nível -1.17 m · vento 10 kn WNW↘ (raj 20.2)"><span class='hh'>14</span></div><div class='cel' style='background:#1E7A5A' title="20/07 15h — verde · swell 0.68 m NNW↘ 5.45 s · nível -0.91 m · vento 10 kn WNW↘ (raj 20.6)" data-t='2026-07-20T15:00' data-estado='verde' data-motivos="" data-vals="swell 0.68 m NNW↘ 5.45 s · nível -0.91 m · vento 10 kn WNW↘ (raj 20.6)"><span class='hh'>15</span></div><div class='cel' style='background:#1E7A5A' title="20/07 16h — verde · swell 0.66 m NNW↘ 5.45 s · nível -0.51 m · vento 9.9 kn WNW↘ (raj 20.4)" data-t='2026-07-20T16:00' data-estado='verde' data-motivos="" data-vals="swell 0.66 m NNW↘ 5.45 s · nível -0.51 m · vento 9.9 kn WNW↘ (raj 20.4)"><span class='hh'>16</span></div><div class='cel' style='background:#1E7A5A' title="20/07 17h — verde · swell 0.66 m NNW↘ 5.4 s · nível -0.06 m · vento 10.2 kn WNW↘ (raj 20.6)" data-t='2026-07-20T17:00' data-estado='verde' data-motivos="" data-vals="swell 0.66 m NNW↘ 5.4 s · nível -0.06 m · vento 10.2 kn WNW↘ (raj 20.6)"><span class='hh'>17</span></div><div class='cel' style='background:#1E7A5A' title="20/07 18h — verde · swell 0.66 m NW↘ 5.3 s · nível +0.32 m · vento 10 kn NW↘ (raj 20.6)" data-t='2026-07-20T18:00' data-estado='verde' data-motivos="" data-vals="swell 0.66 m NW↘ 5.3 s · nível +0.32 m · vento 10 kn NW↘ (raj 20.6)"><span class='hh'>18</span></div><div class='cel' style='background:#1E7A5A' title="20/07 19h — verde · swell 0.66 m NW↘ 5.2 s · nível +0.55 m · vento 9.7 kn NW↘ (raj 20.2)" data-t='2026-07-20T19:00' data-estado='verde' data-motivos="" data-vals="swell 0.66 m NW↘ 5.2 s · nível +0.55 m · vento 9.7 kn NW↘ (raj 20.2)"><span class='hh'>19</span></div><div class='cel' style='background:#1E7A5A' title="20/07 20h — verde · swell 0.66 m NW↘ 5.15 s · nível +0.55 m · vento 8.6 kn NW↘ (raj 19)" data-t='2026-07-20T20:00' data-estado='verde' data-motivos="" data-vals="swell 0.66 m NW↘ 5.15 s · nível +0.55 m · vento 8.6 kn NW↘ (raj 19)"><span class='hh'>20</span></div><div class='cel' style='background:#1E7A5A' title="20/07 21h — verde · swell 0.66 m NW↘ 5.1 s · nível +0.32 m · vento 7.3 kn NW↘ (raj 16.9)" data-t='2026-07-20T21:00' data-estado='verde' data-motivos="" data-vals="swell 0.66 m NW↘ 5.1 s · nível +0.32 m · vento 7.3 kn NW↘ (raj 16.9)"><span class='hh'>21</span></div><div class='cel' style='background:#1E7A5A' title="20/07 22h — verde · swell 0.66 m NW↘ 5.1 s · nível -0.07 m · vento 5.7 kn NW↘ (raj 13.6)" data-t='2026-07-20T22:00' data-estado='verde' data-motivos="" data-vals="swell 0.66 m NW↘ 5.1 s · nível -0.07 m · vento 5.7 kn NW↘ (raj 13.6)"><span class='hh'>22</span></div><div class='cel' style='background:#1E7A5A' title="20/07 23h — verde · swell 0.66 m NW↘ 5.15 s · nível -0.53 m · vento 4.2 kn NW↘ (raj 10.5)" data-t='2026-07-20T23:00' data-estado='verde' data-motivos="" data-vals="swell 0.66 m NW↘ 5.15 s · nível -0.53 m · vento 4.2 kn NW↘ (raj 10.5)"><span class='hh'>23</span></div></div>
-  <svg class='mare' width='1728' height='56' viewBox='0 0 1728 56'><line x1='0' y1='26.8' x2='1728' y2='26.8' class='mare-msl'/><polyline points='12,48.0 36,44.4 60,37.8 84,29.7 108,22.4 132,17.9 156,17.1 180,20.4 204,26.8 228,34.4 252,41.0 276,45.0 300,45.6 324,42.5 348,36.4 372,28.7 396,21.2 420,15.8 444,14.0 468,16.2 492,22.0 516,29.8 540,37.5 564,43.4 588,46.2 612,45.3 636,41.2 660,35.0 684,27.9 708,22.1 732,18.8 756,19.1 780,22.8 804,28.8 828,35.5 852,40.8 876,43.7 900,43.4 924,40.0 948,34.4 972,27.7 996,21.6 1020,17.6 1044,16.9 1068,19.5 1092,25.1 1116,31.8 1140,38.1 1164,42.5 1188,43.9 1212,42.5 1236,38.5 1260,32.9 1284,27.1 1308,22.7 1332,20.6 1356,21.5 1380,25.1 1404,30.4 1428,35.8 1452,39.9 1476,41.7 1500,40.9 1524,37.8 1548,32.9 1572,27.5 1596,22.9 1620,20.1 1644,20.1 1668,22.9 1692,27.6 1716,33.2' class='mare-linha'/><text x='156' y='13.1' text-anchor='middle' class='mare-rot'>06h +0.8</text><text x='300' y='57.6' text-anchor='middle' class='mare-rot'>12h -1.6</text><text x='444' y='10.0' text-anchor='middle' class='mare-rot'>18h +1.1</text><text x='588' y='58.2' text-anchor='middle' class='mare-rot'>00h -1.6</text><text x='732' y='14.8' text-anchor='middle' class='mare-rot'>06h +0.7</text><text x='876' y='55.7' text-anchor='middle' class='mare-rot'>12h -1.4</text><text x='1044' y='12.9' text-anchor='middle' class='mare-rot'>19h +0.8</text><text x='1188' y='55.9' text-anchor='middle' class='mare-rot'>01h -1.4</text><text x='1332' y='16.6' text-anchor='middle' class='mare-rot'>07h +0.5</text><text x='1476' y='53.7' text-anchor='middle' class='mare-rot'>13h -1.2</text><text x='1644' y='16.1' text-anchor='middle' class='mare-rot'>20h +0.6</text></svg>
+  <div class="timeline"><button type='button' class='cel cel-noite' style='background:#1E7A5A' data-t='2026-07-19T00:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.5 m NW↘ · 4.05 s" data-nivel="-1.61 m" data-vento="6.6 kn NNW↘ · rajada 14 kn" data-corrente="0.4 kn S↑" data-vis="26.4 km" aria-label="19/07 00h — GO. Noite"><span class='dia'>19</span><span class='hh'>00</span></button><button type='button' class='cel cel-noite' style='background:#1E7A5A' data-t='2026-07-19T01:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.56 m NW↘ · 4 s" data-nivel="-1.54 m" data-vento="6.9 kn NNW↘ · rajada 12.2 kn" data-corrente="0.3 kn SSE↑" data-vis="26.9 km" aria-label="19/07 01h — GO. Noite"><span class='hh'>01</span></button><button type='button' class='cel cel-noite' style='background:#1E7A5A' data-t='2026-07-19T02:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.56 m NW↘ · 4 s" data-nivel="-1.2 m" data-vento="6.3 kn NNW↘ · rajada 12.6 kn" data-corrente="0.2 kn SSE↖" data-vis="25.3 km" aria-label="19/07 02h — GO. Noite"><span class='hh'>02</span></button><button type='button' class='cel cel-noite' style='background:#1E7A5A' data-t='2026-07-19T03:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.58 m NW↘ · 4 s" data-nivel="-0.68 m" data-vento="4.5 kn NNW↘ · rajada 12.2 kn" data-corrente="0.2 kn SE↖" data-vis="27.2 km" aria-label="19/07 03h — GO. Noite"><span class='hh'>03</span></button><button type='button' class='cel cel-noite' style='background:#1E7A5A' data-t='2026-07-19T04:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.58 m NW↘ · 4.05 s" data-nivel="-0.09 m" data-vento="5.2 kn NW↘ · rajada 8.6 kn" data-corrente="0.2 kn ESE↖" data-vis="27.0 km" aria-label="19/07 04h — GO. Noite"><span class='hh'>04</span></button><button type='button' class='cel cel-noite' style='background:#1E7A5A' data-t='2026-07-19T05:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.58 m NW↘ · 4.1 s" data-nivel="+0.39 m" data-vento="5.1 kn NNW↘ · rajada 8.6 kn" data-corrente="0.2 kn ESE↖" data-vis="26.3 km" aria-label="19/07 05h — GO. Noite"><span class='hh'>05</span></button><button type='button' class='cel cel-noite cel-estofa cel-pm' style='background:#1E7A5A' data-t='2026-07-19T06:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.58 m NW↘ · 4.2 s" data-nivel="+0.66 m" data-vento="4.6 kn NNW↘ · rajada 8.9 kn" data-corrente="0.3 kn ESE←" data-vis="25.5 km" aria-label="19/07 06h — GO. PM (estofa). Noite"><span class='marca-estofa' aria-hidden='true'>PM</span><span class='hh'>06</span></button><button type='button' class='cel' style='background:#1E7A5A' data-t='2026-07-19T07:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.58 m NW↘ · 4.3 s" data-nivel="+0.64 m" data-vento="4.4 kn NW↘ · rajada 8.6 kn" data-corrente="0.3 kn SE↖" data-vis="25.6 km" aria-label="19/07 07h — GO"><span class='hh'>07</span></button><button type='button' class='cel' style='background:#1E7A5A' data-t='2026-07-19T08:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.58 m NW↘ · 4.4 s" data-nivel="+0.33 m" data-vento="4.9 kn NW↘ · rajada 9.7 kn" data-corrente="0.3 kn SE↖" data-vis="29.3 km" aria-label="19/07 08h — GO"><span class='hh'>08</span></button><button type='button' class='cel' style='background:#1E7A5A' data-t='2026-07-19T09:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.56 m NW↘ · 4.45 s" data-nivel="-0.17 m" data-vento="6.8 kn NNW↘ · rajada 14.4 kn" data-corrente="0.5 kn SE↖" data-vis="34.3 km" aria-label="19/07 09h — GO"><span class='hh'>09</span></button><button type='button' class='cel' style='background:#1E7A5A' data-t='2026-07-19T10:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.56 m NW↘ · 4.5 s" data-nivel="-0.72 m" data-vento="7.4 kn NW↘ · rajada 15.9 kn" data-corrente="0.5 kn SE↖" data-vis="36.6 km" aria-label="19/07 10h — GO"><span class='hh'>10</span></button><button type='button' class='cel' style='background:#1E7A5A' data-t='2026-07-19T11:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.56 m NW↘ · 4.5 s" data-nivel="-1.16 m" data-vento="7.7 kn NW↘ · rajada 16.5 kn" data-corrente="0.5 kn SE↖" data-vis="38.7 km" aria-label="19/07 11h — GO"><span class='hh'>11</span></button><button type='button' class='cel cel-estofa cel-bm' style='background:#1E7A5A' data-t='2026-07-19T12:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.56 m NW↘ · 4.45 s" data-nivel="-1.4 m" data-vento="8.1 kn NW↘ · rajada 17.3 kn" data-corrente="0.6 kn SE↖" data-vis="39.9 km" aria-label="19/07 12h — GO. BM (estofa)"><span class='marca-estofa' aria-hidden='true'>BM</span><span class='hh'>12</span></button><button type='button' class='cel' style='background:#1E7A5A' data-t='2026-07-19T13:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.56 m NW↘ · 4.45 s" data-nivel="-1.38 m" data-vento="9.1 kn NW↘ · rajada 19 kn" data-corrente="0.7 kn SE↖" data-vis="39.6 km" aria-label="19/07 13h — GO"><span class='hh'>13</span></button><button type='button' class='cel' style='background:#1E7A5A' data-t='2026-07-19T14:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.54 m NW↘ · 4.5 s" data-nivel="-1.1 m" data-vento="9.8 kn NW↘ · rajada 20.4 kn" data-corrente="0.7 kn SE↖" data-vis="39.3 km" aria-label="19/07 14h — GO"><span class='hh'>14</span></button><button type='button' class='cel' style='background:#1E7A5A' data-t='2026-07-19T15:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.52 m NW↘ · 4.6 s" data-nivel="-0.63 m" data-vento="10 kn NW↘ · rajada 21 kn" data-corrente="0.7 kn SE↖" data-vis="39.3 km" aria-label="19/07 15h — GO"><span class='hh'>15</span></button><button type='button' class='cel' style='background:#1E7A5A' data-t='2026-07-19T16:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.5 m NNW↘ · 4.7 s" data-nivel="-0.08 m" data-vento="10.5 kn NW↘ · rajada 21.8 kn" data-corrente="0.6 kn SE↖" data-vis="39.1 km" aria-label="19/07 16h — GO"><span class='hh'>16</span></button><button type='button' class='cel' style='background:#1E7A5A' data-t='2026-07-19T17:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.48 m NNW↘ · 4.75 s" data-nivel="+0.43 m" data-vento="10.6 kn NW↘ · rajada 22 kn" data-corrente="0.6 kn SE↖" data-vis="38.2 km" aria-label="19/07 17h — GO"><span class='hh'>17</span></button><button type='button' class='cel' style='background:#1E7A5A' data-t='2026-07-19T18:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.44 m NNW↘ · 4.85 s" data-nivel="+0.76 m" data-vento="10.2 kn NW↘ · rajada 21.8 kn" data-corrente="0.6 kn SSE↖" data-vis="37.4 km" aria-label="19/07 18h — GO"><span class='hh'>18</span></button><button type='button' class='cel cel-estofa cel-pm' style='background:#1E7A5A' data-t='2026-07-19T19:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.42 m NNW↘ · 4.95 s" data-nivel="+0.82 m" data-vento="9.9 kn NW↘ · rajada 21 kn" data-corrente="0.6 kn SSE↖" data-vis="36.4 km" aria-label="19/07 19h — GO. PM (estofa)"><span class='marca-estofa' aria-hidden='true'>PM</span><span class='hh'>19</span></button><button type='button' class='cel' style='background:#1E7A5A' data-t='2026-07-19T20:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.42 m NW↘ · 5.25 s" data-nivel="+0.6 m" data-vento="8.9 kn NW↘ · rajada 20.2 kn" data-corrente="0.6 kn SSE↖" data-vis="33.3 km" aria-label="19/07 20h — GO"><span class='hh'>20</span></button><button type='button' class='cel cel-noite' style='background:#1E7A5A' data-t='2026-07-19T21:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.42 m NW↘ · 5.55 s" data-nivel="+0.14 m" data-vento="7.4 kn NW↘ · rajada 18.3 kn" data-corrente="0.6 kn SSE↑" data-vis="30.9 km" aria-label="19/07 21h — GO. Noite"><span class='hh'>21</span></button><button type='button' class='cel cel-noite' style='background:#1E7A5A' data-t='2026-07-19T22:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.42 m WNW↘ · 5.7 s" data-nivel="-0.42 m" data-vento="5.5 kn NW↘ · rajada 14.2 kn" data-corrente="0.6 kn SSE↑" data-vis="26.5 km" aria-label="19/07 22h — GO. Noite"><span class='hh'>22</span></button><button type='button' class='cel cel-noite' style='background:#1E7A5A' data-t='2026-07-19T23:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.46 m NW↘ · 5.45 s" data-nivel="-0.94 m" data-vento="4.5 kn NW↘ · rajada 10.3 kn" data-corrente="0.5 kn SSE↑" data-vis="24.4 km" aria-label="19/07 23h — GO. Noite"><span class='hh'>23</span></button><button type='button' class='cel cel-noite' style='background:#1E7A5A' data-t='2026-07-20T00:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.5 m NW↘ · 5 s" data-nivel="-1.3 m" data-vento="3.7 kn WNW↘ · rajada 7.2 kn" data-corrente="0.4 kn SSE↑" data-vis="22.1 km" aria-label="20/07 00h — GO. Noite"><span class='dia'>20</span><span class='hh'>00</span></button><button type='button' class='cel cel-noite cel-estofa cel-bm' style='background:#1E7A5A' data-t='2026-07-20T01:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.54 m NW↘ · 4.65 s" data-nivel="-1.42 m" data-vento="2.9 kn WNW→ · rajada 6.8 kn" data-corrente="0.3 kn SSE↑" data-vis="20.1 km" aria-label="20/07 01h — GO. BM (estofa). Noite"><span class='marca-estofa' aria-hidden='true'>BM</span><span class='hh'>01</span></button><button type='button' class='cel cel-noite' style='background:#1E7A5A' data-t='2026-07-20T02:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.56 m NW↘ · 4.55 s" data-nivel="-1.3 m" data-vento="3 kn W→ · rajada 5.6 kn" data-corrente="0.3 kn SE↖" data-vis="19.5 km" aria-label="20/07 02h — GO. Noite"><span class='hh'>02</span></button><button type='button' class='cel cel-noite' style='background:#1E7A5A' data-t='2026-07-20T03:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.56 m NW↘ · 4.6 s" data-nivel="-0.97 m" data-vento="3.3 kn WNW→ · rajada 5.8 kn" data-corrente="0.3 kn SE↖" data-vis="18.9 km" aria-label="20/07 03h — GO. Noite"><span class='hh'>03</span></button><button type='button' class='cel cel-noite' style='background:#1E7A5A' data-t='2026-07-20T04:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.58 m NW↘ · 4.7 s" data-nivel="-0.51 m" data-vento="3.6 kn WNW→ · rajada 6.4 kn" data-corrente="0.3 kn ESE←" data-vis="18.9 km" aria-label="20/07 04h — GO. Noite"><span class='hh'>04</span></button><button type='button' class='cel cel-noite' style='background:#1E7A5A' data-t='2026-07-20T05:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.58 m NNW↘ · 4.8 s" data-nivel="-0.03 m" data-vento="3.3 kn WNW↘ · rajada 5.8 kn" data-corrente="0.3 kn ESE←" data-vis="18.3 km" aria-label="20/07 05h — GO. Noite"><span class='hh'>05</span></button><button type='button' class='cel cel-noite' style='background:#1E7A5A' data-t='2026-07-20T06:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.58 m NNW↘ · 4.95 s" data-nivel="+0.34 m" data-vento="3.1 kn WNW↘ · rajada 5.2 kn" data-corrente="0.3 kn ESE←" data-vis="19.2 km" aria-label="20/07 06h — GO. Noite"><span class='hh'>06</span></button><button type='button' class='cel cel-estofa cel-pm' style='background:#1E7A5A' data-t='2026-07-20T07:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.58 m NNW↘ · 5.05 s" data-nivel="+0.51 m" data-vento="2.8 kn WNW↘ · rajada 4.9 kn" data-corrente="0.4 kn ESE↖" data-vis="20.5 km" aria-label="20/07 07h — GO. PM (estofa)"><span class='marca-estofa' aria-hidden='true'>PM</span><span class='hh'>07</span></button><button type='button' class='cel' style='background:#1E7A5A' data-t='2026-07-20T08:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.62 m NNW↘ · 5.05 s" data-nivel="+0.44 m" data-vento="3.1 kn WNW↘ · rajada 5.8 kn" data-corrente="0.4 kn ESE↖" data-vis="24.5 km" aria-label="20/07 08h — GO"><span class='hh'>08</span></button><button type='button' class='cel' style='background:#1E7A5A' data-t='2026-07-20T09:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.64 m NNW↘ · 5 s" data-nivel="+0.14 m" data-vento="4.5 kn NW↘ · rajada 9.1 kn" data-corrente="0.5 kn SE↖" data-vis="30.6 km" aria-label="20/07 09h — GO"><span class='hh'>09</span></button><button type='button' class='cel' style='background:#1E7A5A' data-t='2026-07-20T10:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.68 m NW↘ · 4.95 s" data-nivel="-0.3 m" data-vento="5.6 kn NW↘ · rajada 12.1 kn" data-corrente="0.5 kn SE↖" data-vis="32.7 km" aria-label="20/07 10h — GO"><span class='hh'>10</span></button><button type='button' class='cel' style='background:#1E7A5A' data-t='2026-07-20T11:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.7 m NW↘ · 5 s" data-nivel="-0.75 m" data-vento="6.5 kn WNW↘ · rajada 14 kn" data-corrente="0.6 kn SE↖" data-vis="34.9 km" aria-label="20/07 11h — GO"><span class='hh'>11</span></button><button type='button' class='cel' style='background:#1E7A5A' data-t='2026-07-20T12:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.74 m NW↘ · 5.1 s" data-nivel="-1.09 m" data-vento="7.6 kn WNW↘ · rajada 15.9 kn" data-corrente="0.7 kn SE↖" data-vis="36.6 km" aria-label="20/07 12h — GO"><span class='hh'>12</span></button><button type='button' class='cel cel-estofa cel-bm' style='background:#1E7A5A' data-t='2026-07-20T13:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.76 m NW↘ · 5.15 s" data-nivel="-1.24 m" data-vento="9 kn NW↘ · rajada 18.7 kn" data-corrente="0.8 kn SE↖" data-vis="36.9 km" aria-label="20/07 13h — GO. BM (estofa)"><span class='marca-estofa' aria-hidden='true'>BM</span><span class='hh'>13</span></button><button type='button' class='cel' style='background:#1E7A5A' data-t='2026-07-20T14:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.76 m NW↘ · 5.2 s" data-nivel="-1.17 m" data-vento="9.4 kn NW↘ · rajada 19.6 kn" data-corrente="0.8 kn SE↖" data-vis="37.2 km" aria-label="20/07 14h — GO"><span class='hh'>14</span></button><button type='button' class='cel' style='background:#1E7A5A' data-t='2026-07-20T15:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.78 m NW↘ · 5.25 s" data-nivel="-0.91 m" data-vento="9.7 kn WNW↘ · rajada 20.4 kn" data-corrente="0.7 kn SE↖" data-vis="37.4 km" aria-label="20/07 15h — GO"><span class='hh'>15</span></button><button type='button' class='cel' style='background:#1E7A5A' data-t='2026-07-20T16:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.78 m NW↘ · 5.3 s" data-nivel="-0.51 m" data-vento="10.1 kn WNW↘ · rajada 21.2 kn" data-corrente="0.7 kn SE↖" data-vis="36.9 km" aria-label="20/07 16h — GO"><span class='hh'>16</span></button><button type='button' class='cel' style='background:#1E7A5A' data-t='2026-07-20T17:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.76 m NW↘ · 5.3 s" data-nivel="-0.06 m" data-vento="10 kn NW↘ · rajada 21.4 kn" data-corrente="0.8 kn SE↖" data-vis="36.2 km" aria-label="20/07 17h — GO"><span class='hh'>17</span></button><button type='button' class='cel' style='background:#1E7A5A' data-t='2026-07-20T18:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.76 m NW↘ · 5.3 s" data-nivel="+0.32 m" data-vento="9.5 kn NW↘ · rajada 21 kn" data-corrente="0.7 kn SE↖" data-vis="37.1 km" aria-label="20/07 18h — GO"><span class='hh'>18</span></button><button type='button' class='cel' style='background:#1E7A5A' data-t='2026-07-20T19:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.74 m NW↘ · 5.25 s" data-nivel="+0.55 m" data-vento="8.7 kn NW↘ · rajada 19.8 kn" data-corrente="0.6 kn SSE↖" data-vis="35.9 km" aria-label="20/07 19h — GO"><span class='hh'>19</span></button><button type='button' class='cel cel-estofa cel-pm' style='background:#1E7A5A' data-t='2026-07-20T20:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.74 m NW↘ · 5.2 s" data-nivel="+0.55 m" data-vento="8 kn NW↘ · rajada 17.9 kn" data-corrente="0.6 kn SSE↖" data-vis="33.1 km" aria-label="20/07 20h — GO. PM (estofa)"><span class='marca-estofa' aria-hidden='true'>PM</span><span class='hh'>20</span></button><button type='button' class='cel cel-noite' style='background:#1E7A5A' data-t='2026-07-20T21:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.72 m NW↘ · 5.15 s" data-nivel="+0.32 m" data-vento="6.5 kn NW↘ · rajada 16.3 kn" data-corrente="0.5 kn SSE↑" data-vis="31.0 km" aria-label="20/07 21h — GO. Noite"><span class='hh'>21</span></button><button type='button' class='cel cel-noite' style='background:#1E7A5A' data-t='2026-07-20T22:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.72 m NW↘ · 5.15 s" data-nivel="-0.07 m" data-vento="5.2 kn NW↘ · rajada 12.6 kn" data-corrente="0.5 kn S↑" data-vis="28.5 km" aria-label="20/07 22h — GO. Noite"><span class='hh'>22</span></button><button type='button' class='cel cel-noite' style='background:#1E7A5A' data-t='2026-07-20T23:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.72 m NW↘ · 5.2 s" data-nivel="-0.53 m" data-vento="4 kn NW↘ · rajada 8.7 kn" data-corrente="0.4 kn SSE↑" data-vis="23.7 km" aria-label="20/07 23h — GO. Noite"><span class='hh'>23</span></button><button type='button' class='cel cel-noite' style='background:#1E7A5A' data-t='2026-07-21T00:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.7 m NW↘ · 5.3 s" data-nivel="-0.92 m" data-vento="2.9 kn NW↘ · rajada 7.8 kn" data-corrente="0.3 kn SSE↑" data-vis="23.8 km" aria-label="21/07 00h — GO. Noite"><span class='dia'>21</span><span class='hh'>00</span></button><button type='button' class='cel cel-noite' style='background:#1E7A5A' data-t='2026-07-21T01:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.7 m NW↘ · 5.35 s" data-nivel="-1.17 m" data-vento="2.3 kn WNW↘ · rajada 4.5 kn" data-corrente="0.2 kn SSE↖" data-vis="21.3 km" aria-label="21/07 01h — GO. Noite"><span class='hh'>01</span></button><button type='button' class='cel cel-noite cel-estofa cel-bm' style='background:#1E7A5A' data-t='2026-07-21T02:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.72 m NW↘ · 5.25 s" data-nivel="-1.22 m" data-vento="1.3 kn WSW↗ · rajada 4.1 kn" data-corrente="0.2 kn ESE↖" data-vis="21.2 km" aria-label="21/07 02h — GO. BM (estofa). Noite"><span class='marca-estofa' aria-hidden='true'>BM</span><span class='hh'>02</span></button><button type='button' class='cel cel-noite' style='background:#1E7A5A' data-t='2026-07-21T03:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.76 m NW↘ · 5.15 s" data-nivel="-1.08 m" data-vento="1.3 kn WSW↗ · rajada 2.1 kn" data-corrente="0.2 kn ESE↖" data-vis="17.8 km" aria-label="21/07 03h — GO. Noite"><span class='hh'>03</span></button><button type='button' class='cel cel-noite' style='background:#1E7A5A' data-t='2026-07-21T04:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.78 m NW↘ · 5.1 s" data-nivel="-0.79 m" data-vento="1.4 kn W→ · rajada 2.5 kn" data-corrente="0.3 kn E←" data-vis="15.2 km" aria-label="21/07 04h — GO. Noite"><span class='hh'>04</span></button><button type='button' class='cel cel-noite' style='background:#1E7A5A' data-t='2026-07-21T05:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.74 m NW↘ · 5.3 s" data-nivel="-0.4 m" data-vento="1.8 kn W→ · rajada 3.5 kn" data-corrente="0.4 kn E←" data-vis="14.9 km" aria-label="21/07 05h — GO. Noite"><span class='hh'>05</span></button><button type='button' class='cel cel-noite' style='background:#1E7A5A' data-t='2026-07-21T06:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.72 m NNW↘ · 5.55 s" data-nivel="-0.03 m" data-vento="2.1 kn W→ · rajada 3.9 kn" data-corrente="0.4 kn E←" data-vis="13.5 km" aria-label="21/07 06h — GO. Noite"><span class='hh'>06</span></button><button type='button' class='cel' style='background:#1E7A5A' data-t='2026-07-21T07:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.68 m NNW↘ · 5.7 s" data-nivel="+0.25 m" data-vento="1.7 kn WNW→ · rajada 3.7 kn" data-corrente="0.5 kn E←" data-vis="12.2 km" aria-label="21/07 07h — GO"><span class='hh'>07</span></button><button type='button' class='cel cel-estofa cel-pm' style='background:#1E7A5A' data-t='2026-07-21T08:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.68 m NW↘ · 5.6 s" data-nivel="+0.35 m" data-vento="1 kn WNW→ · rajada 3.1 kn" data-corrente="0.5 kn E←" data-vis="15.2 km" aria-label="21/07 08h — GO. PM (estofa)"><span class='marca-estofa' aria-hidden='true'>PM</span><span class='hh'>08</span></button><button type='button' class='cel' style='background:#1E7A5A' data-t='2026-07-21T09:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.7 m NW↘ · 5.4 s" data-nivel="+0.26 m" data-vento="2.2 kn W→ · rajada 5.2 kn" data-corrente="0.5 kn ESE←" data-vis="23.2 km" aria-label="21/07 09h — GO"><span class='hh'>09</span></button><button type='button' class='cel' style='background:#1E7A5A' data-t='2026-07-21T10:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.7 m NW↘ · 5.25 s" data-nivel="+0 m" data-vento="3.4 kn WSW↗ · rajada 8.2 kn" data-corrente="0.5 kn ESE↖" data-vis="29.5 km" aria-label="21/07 10h — GO"><span class='hh'>10</span></button><button type='button' class='cel' style='background:#1E7A5A' data-t='2026-07-21T11:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.7 m NW↘ · 5.2 s" data-nivel="-0.36 m" data-vento="4.3 kn WSW→ · rajada 10.5 kn" data-corrente="0.6 kn SE↖" data-vis="32.1 km" aria-label="21/07 11h — GO"><span class='hh'>11</span></button><button type='button' class='cel' style='background:#1E7A5A' data-t='2026-07-21T12:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.7 m NW↘ · 5.2 s" data-nivel="-0.72 m" data-vento="5.5 kn WSW→ · rajada 13.2 kn" data-corrente="0.6 kn SE↖" data-vis="34.2 km" aria-label="21/07 12h — GO"><span class='hh'>12</span></button><button type='button' class='cel' style='background:#1E7A5A' data-t='2026-07-21T13:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.7 m NW↘ · 5.2 s" data-nivel="-0.97 m" data-vento="6.6 kn WSW→ · rajada 15.6 kn" data-corrente="0.6 kn SE↖" data-vis="36.4 km" aria-label="21/07 13h — GO"><span class='hh'>13</span></button><button type='button' class='cel cel-estofa cel-bm' style='background:#1E7A5A' data-t='2026-07-21T14:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.7 m NW↘ · 5.2 s" data-nivel="-1.07 m" data-vento="7.6 kn W→ · rajada 17.1 kn" data-corrente="0.7 kn SE↖" data-vis="36.4 km" aria-label="21/07 14h — GO. BM (estofa)"><span class='marca-estofa' aria-hidden='true'>BM</span><span class='hh'>14</span></button><button type='button' class='cel' style='background:#1E7A5A' data-t='2026-07-21T15:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.7 m NW↘ · 5.25 s" data-nivel="-1 m" data-vento="7.4 kn W→ · rajada 17.1 kn" data-corrente="0.7 kn SE↖" data-vis="36.2 km" aria-label="21/07 15h — GO"><span class='hh'>15</span></button><button type='button' class='cel' style='background:#1E7A5A' data-t='2026-07-21T16:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.7 m NW↘ · 5.3 s" data-nivel="-0.79 m" data-vento="7.5 kn W→ · rajada 16.7 kn" data-corrente="0.7 kn SE↖" data-vis="36.8 km" aria-label="21/07 16h — GO"><span class='hh'>16</span></button><button type='button' class='cel' style='background:#1E7A5A' data-t='2026-07-21T17:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.7 m NW↘ · 5.3 s" data-nivel="-0.46 m" data-vento="7 kn W→ · rajada 16.3 kn" data-corrente="0.7 kn SE↖" data-vis="35.6 km" aria-label="21/07 17h — GO"><span class='hh'>17</span></button><button type='button' class='cel' style='background:#1E7A5A' data-t='2026-07-21T18:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.68 m NW↘ · 5.35 s" data-nivel="-0.12 m" data-vento="7.1 kn W→ · rajada 15.7 kn" data-corrente="0.7 kn SE↖" data-vis="34.6 km" aria-label="21/07 18h — GO"><span class='hh'>18</span></button><button type='button' class='cel' style='background:#1E7A5A' data-t='2026-07-21T19:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.68 m NW↘ · 5.35 s" data-nivel="+0.17 m" data-vento="6.6 kn WNW→ · rajada 15.4 kn" data-corrente="0.7 kn SE↖" data-vis="32.5 km" aria-label="21/07 19h — GO"><span class='hh'>19</span></button><button type='button' class='cel cel-estofa cel-pm' style='background:#1E7A5A' data-t='2026-07-21T20:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.66 m NW↘ · 5.35 s" data-nivel="+0.33 m" data-vento="6.1 kn WNW→ · rajada 14.2 kn" data-corrente="0.7 kn SE↖" data-vis="31.3 km" aria-label="21/07 20h — GO. PM (estofa)"><span class='marca-estofa' aria-hidden='true'>PM</span><span class='hh'>20</span></button><button type='button' class='cel cel-noite' style='background:#1E7A5A' data-t='2026-07-21T21:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.66 m NW↘ · 5.4 s" data-nivel="+0.32 m" data-vento="5 kn WNW→ · rajada 12.1 kn" data-corrente="0.6 kn SSE↖" data-vis="27.5 km" aria-label="21/07 21h — GO. Noite"><span class='hh'>21</span></button><button type='button' class='cel cel-noite' style='background:#1E7A5A' data-t='2026-07-21T22:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.64 m NW↘ · 5.4 s" data-nivel="+0.13 m" data-vento="4 kn WNW↘ · rajada 9.5 kn" data-corrente="0.6 kn SSE↖" data-vis="25.4 km" aria-label="21/07 22h — GO. Noite"><span class='hh'>22</span></button><button type='button' class='cel cel-noite' style='background:#1E7A5A' data-t='2026-07-21T23:00' data-estado='verde' data-rotulo='GO' data-motivos="" data-mar="swell 0.62 m NW↘ · 5.35 s" data-nivel="-0.18 m" data-vento="3.9 kn NW↘ · rajada 7.6 kn" data-corrente="0.5 kn SSE↑" data-vis="22.2 km" aria-label="21/07 23h — GO. Noite"><span class='hh'>23</span></button></div>
+  <svg class='mare' width='1728' height='56' viewBox='0 0 1728 56'><line x1='0' y1='25.5' x2='1728' y2='25.5' class='mare-msl'/><polyline points='12,48.0 36,47.0 60,42.3 84,35.0 108,26.7 132,20.0 156,16.2 180,16.5 204,20.9 228,27.9 252,35.5 276,41.7 300,45.1 324,44.8 348,40.9 372,34.3 396,26.6 420,19.5 444,14.8 468,14.0 492,17.1 516,23.5 540,31.3 564,38.6 588,43.7 612,45.3 636,43.7 660,39.0 684,32.6 708,25.9 732,20.7 756,18.3 780,19.3 804,23.5 828,29.7 852,36.0 876,40.7 900,42.8 924,41.8 948,38.2 972,32.6 996,26.3 1020,21.0 1044,17.8 1068,17.8 1092,21.0 1116,26.5 1140,32.9 1164,38.3 1188,41.8 1212,42.5 1236,40.6 1260,36.5 1284,31.1 1308,25.9 1332,22.0 1356,20.6 1380,21.8 1404,25.5 1428,30.5 1452,35.5 1476,39.0 1500,40.4 1524,39.5 1548,36.5 1572,31.9 1596,27.2 1620,23.1 1644,20.9 1668,21.0 1692,23.7 1716,28.0' class='mare-linha'/><text x='156' y='12.2' text-anchor='middle' class='mare-rot'>06h +0.7</text><text x='300' y='57.1' text-anchor='middle' class='mare-rot'>12h -1.4</text><text x='468' y='10.0' text-anchor='middle' class='mare-rot'>19h +0.8</text><text x='612' y='57.3' text-anchor='middle' class='mare-rot'>01h -1.4</text><text x='756' y='14.3' text-anchor='middle' class='mare-rot'>07h +0.5</text><text x='900' y='54.8' text-anchor='middle' class='mare-rot'>13h -1.2</text><text x='1068' y='13.8' text-anchor='middle' class='mare-rot'>20h +0.6</text><text x='1212' y='54.5' text-anchor='middle' class='mare-rot'>02h -1.2</text><text x='1356' y='16.6' text-anchor='middle' class='mare-rot'>08h +0.3</text><text x='1500' y='52.4' text-anchor='middle' class='mare-rot'>14h -1.1</text><text x='1644' y='16.9' text-anchor='middle' class='mare-rot'>20h +0.3</text></svg>
  </div>
- <div id="detalhe" hidden></div>
- <div class="legenda">Toca/paira numa hora para ver os motivos. · curva: nível modelado (rel. MSL)
-  <span class="dot" style="background:#1E7A5A"></span>verde
-  <span class="dot" style="background:#E2B93B"></span>âmbar
-  <span class="dot" style="background:#C0392B"></span>vermelho</div>
+ <div id="detalhe" aria-live="polite" hidden></div>
+ <div class="legenda">
+  <div>Toca ou navega por teclado numa hora para ver os detalhes. · curva: nível modelado (rel. MSL)</div>
+  <div>
+   <span class="legenda-item"><span class="dot" style="background:#1E7A5A"></span>GO</span>
+   <span class="legenda-item"><span class="dot" style="background:#E2B93B"></span>GO condicional (~)</span>
+   <span class="legenda-item"><span class="dot" style="background:#C0392B"></span>NO-GO (▲)</span>
+   <span class="legenda-item">faixa escura no topo = noite</span>
+   <span class="legenda-item">PM/BM = estofa (preia-mar/baixa-mar)</span>
+  </div>
+ </div>
 </section>
 
-<section>
- <h2>Navios (ETA/ETD da APL) na janela prevista</h2>
+<section aria-labelledby="nav-titulo">
+ <h2 id="nav-titulo">Navios (ETA/ETD da APL) na janela prevista</h2>
  
         <div class="navio">
-          <span class="farol" style="background:#1E7A5A"></span>
-          <div>
-            <div class="nnome">GRETA K</div>
-            <div class="nmeta">entrada · 18/07 23:59 · calado 9.2 m · Tanque Petroleiro</div>
-            <div class='nmeta'>TERM COMB REPSOL/BANATICA</div>
-            <div class="nmot">condições dentro dos limiares; UKC ok: água ≈13.6 m, folga 4.4 m (48% do calado)</div>
+          <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
+          <div class="navio-corpo">
+            <div class="nnome-linha"><span class="nnome">WOOYANG CLES</span>
+            <span class="nestado">GO</span></div>
+            <div class="nmeta">entrada · 19/07 01:00</div>
+            <div class='chips'><span class='chip'>Carga Geral</span><span class='chip'>calado 7.96 m</span><span class='chip'>TERM GRANEIS SOVENA/PALENÇA</span></div>
+            <ul class='nmot'><li>condições dentro dos limiares</li><li>UKC ok: água ≈13.5 m, folga 5.3 m (−0.2 m ondulação) (66% do calado)</li><li>ETA fora de janela de estofa (PM 06h)</li></ul>
           </div>
         </div>
         <div class="navio">
-          <span class="farol" style="background:#1E7A5A"></span>
-          <div>
-            <div class="nnome">WOOYANG CLES</div>
-            <div class="nmeta">entrada · 19/07 01:00 · calado 7.96 m · Carga Geral</div>
-            <div class='nmeta'>TERM GRANEIS SOVENA/PALENÇA</div>
-            <div class="nmot">condições dentro dos limiares; UKC ok: água ≈13.5 m, folga 5.5 m (69% do calado)</div>
+          <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
+          <div class="navio-corpo">
+            <div class="nnome-linha"><span class="nnome">WEC CORNEILLE</span>
+            <span class="nestado">GO</span></div>
+            <div class="nmeta">entrada · 19/07 16:00</div>
+            <div class='chips'><span class='chip'>Porta-contentores</span><span class='chip'>calado 8 m</span><span class='chip'>FUNDEADOURO QUADRO CENTRAL</span></div>
+            <ul class='nmot'><li>condições dentro dos limiares</li><li>UKC ok: água ≈14.9 m, folga 6.7 m (−0.2 m ondulação) (84% do calado)</li><li>ETA fora de janela de estofa (PM 19h)</li></ul>
           </div>
         </div>
         <div class="navio">
-          <span class="farol" style="background:#1E7A5A"></span>
-          <div>
-            <div class="nnome">IRENES RESOLVE</div>
-            <div class="nmeta">entrada · 19/07 05:00 · calado 8.3 m · Porta-contentores</div>
-            <div class='nmeta'>TERM CONTENT ALCANTARA /  LISCONT</div>
-            <div class="nmot">condições dentro dos limiares; UKC ok: água ≈15.4 m, folga 7.1 m (85% do calado)</div>
+          <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
+          <div class="navio-corpo">
+            <div class="nnome-linha"><span class="nnome">HANSA ROTENBURG</span>
+            <span class="nestado">GO</span></div>
+            <div class="nmeta">entrada · 19/07 17:00</div>
+            <div class='chips'><span class='chip'>Porta-Contentores</span><span class='chip'>calado 8 m</span><span class='chip'>TERM CONTENT ALCANTARA /  LISCONT</span></div>
+            <ul class='nmot'><li>condições dentro dos limiares</li><li>UKC ok: água ≈15.4 m, folga 7.2 m (−0.2 m ondulação) (90% do calado)</li><li>ETA fora de janela de estofa (PM 19h)</li></ul>
           </div>
         </div>
         <div class="navio">
-          <span class="farol" style="background:#E2B93B"></span>
-          <div>
-            <div class="nnome">SMIRNI</div>
-            <div class="nmeta">entrada · 19/07 05:00 · calado 13.5 m · Graneleiro</div>
-            <div class='nmeta'>TERM GRANEIS SOVENA/PALENÇA</div>
-            <div class="nmot">condições dentro dos limiares; UKC marginal: água ≈15.4 m, folga 1.9 m (14% do calado)</div>
+          <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
+          <div class="navio-corpo">
+            <div class="nnome-linha"><span class="nnome">BOKA SUB C</span>
+            <span class="nestado">GO</span></div>
+            <div class="nmeta">entrada · 19/07 18:00</div>
+            <div class='chips'><span class='chip'>Navio de providencia de bens</span><span class='chip'>calado 7 m</span><span class='chip'>EST.ASSIST.NAVAL PORTO LISBOA</span></div>
+            <ul class='nmot'><li>condições dentro dos limiares</li><li>UKC ok: água ≈15.8 m, folga 8.5 m (−0.2 m ondulação) (122% do calado)</li><li>ETA fora de janela de estofa (PM 19h)</li></ul>
           </div>
         </div>
         <div class="navio">
-          <span class="farol" style="background:#1E7A5A"></span>
-          <div>
-            <div class="nnome">JAIME S</div>
-            <div class="nmeta">entrada · 19/07 07:00 · calado 6 m · Porta-Contentores</div>
-            <div class='nmeta'>TERM CONTENT STª APOLONIA/SOTAGUS</div>
-            <div class="nmot">condições dentro dos limiares; UKC ok: água ≈15.6 m, folga 9.6 m (161% do calado)</div>
+          <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
+          <div class="navio-corpo">
+            <div class="nnome-linha"><span class="nnome">MONTE BRASIL</span>
+            <span class="nestado">GO</span></div>
+            <div class="nmeta">entrada · 20/07 06:00</div>
+            <div class='chips'><span class='chip'>Porta-contentores</span><span class='chip'>calado 6.3 m</span><span class='chip'>TERMINAL MULTIPURPOSE DE LISBOA</span></div>
+            <ul class='nmot'><li>condições dentro dos limiares</li><li>UKC ok: água ≈15.3 m, folga 8.8 m (−0.2 m ondulação) (140% do calado)</li><li>ETA fora de janela de estofa (PM 07h)</li></ul>
           </div>
         </div>
         <div class="navio">
-          <span class="farol" style="background:#1E7A5A"></span>
-          <div>
-            <div class="nnome">WEC CORNEILLE</div>
-            <div class="nmeta">entrada · 19/07 16:00 · calado 8 m · Porta-contentores</div>
-            <div class='nmeta'>FUNDEADOURO QUADRO CENTRAL</div>
-            <div class="nmot">condições dentro dos limiares; UKC ok: água ≈14.9 m, folga 6.9 m (86% do calado)</div>
+          <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
+          <div class="navio-corpo">
+            <div class="nnome-linha"><span class="nnome">Seven Seas Voyager</span>
+            <span class="nestado">GO</span></div>
+            <div class="nmeta">entrada · 20/07 06:00</div>
+            <div class='chips'><span class='chip'>CRUZEIROS</span><span class='chip'>calado 7.1 m</span><span class='chip'>CAIS DE STª APOLONIA/TERMINAL DE PASSAGEIROS</span></div>
+            <ul class='nmot'><li>condições dentro dos limiares</li><li>UKC ok: água ≈15.3 m, folga 8.0 m (−0.2 m ondulação) (113% do calado)</li><li>ETA fora de janela de estofa (PM 07h)</li></ul>
           </div>
         </div>
         <div class="navio">
-          <span class="farol" style="background:#1E7A5A"></span>
-          <div>
-            <div class="nnome">HANSA ROTENBURG</div>
-            <div class="nmeta">entrada · 19/07 17:00 · calado 8 m · Porta-Contentores</div>
-            <div class='nmeta'>TERM CONTENT ALCANTARA /  LISCONT</div>
-            <div class="nmot">condições dentro dos limiares; UKC ok: água ≈15.4 m, folga 7.4 m (93% do calado)</div>
+          <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
+          <div class="navio-corpo">
+            <div class="nnome-linha"><span class="nnome">CAPT. KATTELMAN</span>
+            <span class="nestado">GO</span></div>
+            <div class="nmeta">entrada · 20/07 06:05</div>
+            <div class='chips'><span class='chip'>Porta-Contentores</span><span class='chip'>calado 7 m</span><span class='chip'>TERM CONTENT ALCANTARA /  LISCONT</span></div>
+            <ul class='nmot'><li>condições dentro dos limiares</li><li>UKC ok: água ≈15.3 m, folga 8.1 m (−0.2 m ondulação) (116% do calado)</li><li>ETA fora de janela de estofa (PM 07h)</li></ul>
           </div>
         </div>
         <div class="navio">
-          <span class="farol" style="background:#1E7A5A"></span>
-          <div>
-            <div class="nnome">BOKA SUB C</div>
-            <div class="nmeta">entrada · 19/07 18:00 · calado 7 m · Navio de providencia de bens</div>
-            <div class='nmeta'>EST.ASSIST.NAVAL PORTO LISBOA</div>
-            <div class="nmot">condições dentro dos limiares; UKC ok: água ≈15.8 m, folga 8.8 m (125% do calado)</div>
+          <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
+          <div class="navio-corpo">
+            <div class="nnome-linha"><span class="nnome">TEOS</span>
+            <span class="nestado">GO</span></div>
+            <div class="nmeta">entrada · 20/07 08:00</div>
+            <div class='chips'><span class='chip'>Carga Geral multi deck</span><span class='chip'>calado 5.5 m</span><span class='chip'>TERMINAL MULTIPURPOSE DE LISBOA</span></div>
+            <ul class='nmot'><li>condições dentro dos limiares</li><li>UKC ok: água ≈15.4 m, folga 9.7 m (−0.3 m ondulação) (176% do calado)</li><li>ETA fora de janela de estofa (PM 07h)</li></ul>
           </div>
         </div>
         <div class="navio">
-          <span class="farol" style="background:#1E7A5A"></span>
-          <div>
-            <div class="nnome">MONTE BRASIL</div>
-            <div class="nmeta">entrada · 20/07 06:00 · calado 6.3 m · Porta-contentores</div>
-            <div class='nmeta'>TERMINAL MULTIPURPOSE DE LISBOA</div>
-            <div class="nmot">condições dentro dos limiares; UKC ok: água ≈15.3 m, folga 9.0 m (143% do calado)</div>
+          <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
+          <div class="navio-corpo">
+            <div class="nnome-linha"><span class="nnome">BOMAR HAWK</span>
+            <span class="nestado">GO</span></div>
+            <div class="nmeta">entrada · 20/07 09:00</div>
+            <div class='chips'><span class='chip'>Tanque Químico</span><span class='chip'>calado 9.8 m</span><span class='chip'>EST.ASSIST.NAVAL PORTO LISBOA</span></div>
+            <ul class='nmot'><li>condições dentro dos limiares</li><li>UKC ok: água ≈15.1 m, folga 5.1 m (−0.3 m ondulação) (52% do calado)</li><li>ETA fora de janela de estofa (PM 07h)</li></ul>
           </div>
         </div>
         <div class="navio">
-          <span class="farol" style="background:#1E7A5A"></span>
-          <div>
-            <div class="nnome">Seven Seas Voyager</div>
-            <div class="nmeta">entrada · 20/07 06:00 · calado 7.1 m · CRUZEIROS</div>
-            <div class='nmeta'>CAIS DE STª APOLONIA/TERMINAL DE PASSAGEIROS</div>
-            <div class="nmot">condições dentro dos limiares; UKC ok: água ≈15.3 m, folga 8.2 m (116% do calado)</div>
+          <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
+          <div class="navio-corpo">
+            <div class="nnome-linha"><span class="nnome">GULF BLUE</span>
+            <span class="nestado">GO</span></div>
+            <div class="nmeta">entrada · 20/07 09:00</div>
+            <div class='chips'><span class='chip'>Misto - Carga geral / Contentores</span><span class='chip'>calado 3.5 m</span><span class='chip'>CAIS DO POÇO DO BISPO / TMPB</span></div>
+            <ul class='nmot'><li>condições dentro dos limiares</li><li>UKC ok: água ≈15.1 m, folga 11.4 m (−0.3 m ondulação) (325% do calado)</li><li>ETA fora de janela de estofa (PM 07h)</li></ul>
           </div>
         </div>
         <div class="navio">
-          <span class="farol" style="background:#1E7A5A"></span>
-          <div>
-            <div class="nnome">CAPT. KATTELMAN</div>
-            <div class="nmeta">entrada · 20/07 06:00 · calado 7 m · Porta-Contentores</div>
-            <div class='nmeta'>TERM CONTENT ALCANTARA /  LISCONT</div>
-            <div class="nmot">condições dentro dos limiares; UKC ok: água ≈15.3 m, folga 8.3 m (119% do calado)</div>
+          <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
+          <div class="navio-corpo">
+            <div class="nnome-linha"><span class="nnome">SEAHOPE</span>
+            <span class="nestado">GO</span></div>
+            <div class="nmeta">entrada · 20/07 09:00</div>
+            <div class='chips'><span class='chip'>Graneleiro</span><span class='chip'>calado 10.12 m</span><span class='chip'>TERM CONTENT ALCANTARA/LISCONT-JUSANTE</span></div>
+            <ul class='nmot'><li>condições dentro dos limiares</li><li>UKC ok: água ≈15.1 m, folga 4.8 m (−0.3 m ondulação) (47% do calado)</li><li>ETA fora de janela de estofa (PM 07h)</li></ul>
           </div>
         </div>
         <div class="navio">
-          <span class="farol" style="background:#1E7A5A"></span>
-          <div>
-            <div class="nnome">TEOS</div>
-            <div class="nmeta">entrada · 20/07 08:00 · calado 5.5 m · Carga Geral multi deck</div>
-            <div class='nmeta'>TERMINAL MULTIPURPOSE DE LISBOA</div>
-            <div class="nmot">condições dentro dos limiares; UKC ok: água ≈15.4 m, folga 9.9 m (181% do calado)</div>
+          <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
+          <div class="navio-corpo">
+            <div class="nnome-linha"><span class="nnome">MH SHOGUN</span>
+            <span class="nestado">GO</span></div>
+            <div class="nmeta">entrada · 20/07 12:00</div>
+            <div class='chips'><span class='chip'>Petroleiro para carregamento de crude</span><span class='chip'>calado 8.5 m</span><span class='chip'>TERM GRANEIS CHANE/BARREIRO</span></div>
+            <ul class='nmot'><li>condições dentro dos limiares</li><li>UKC ok: água ≈13.9 m, folga 5.1 m (−0.3 m ondulação) (61% do calado)</li><li>ETA fora de janela de estofa (BM 13h)</li></ul>
           </div>
         </div>
         <div class="navio">
-          <span class="farol" style="background:#1E7A5A"></span>
-          <div>
-            <div class="nnome">BOMAR HAWK</div>
-            <div class="nmeta">entrada · 20/07 09:00 · calado 9.8 m · Tanque Químico</div>
-            <div class='nmeta'>EST.ASSIST.NAVAL PORTO LISBOA</div>
-            <div class="nmot">condições dentro dos limiares; UKC ok: água ≈15.1 m, folga 5.3 m (54% do calado)</div>
+          <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
+          <div class="navio-corpo">
+            <div class="nnome-linha"><span class="nnome">EA GANNET</span>
+            <span class="nestado">GO</span></div>
+            <div class="nmeta">entrada · 20/07 15:01</div>
+            <div class='chips'><span class='chip'>Porta-Contentores</span><span class='chip'>calado 8 m</span><span class='chip'>TERM CONTENT ALCANTARA /  LISCONT</span></div>
+            <ul class='nmot'><li>condições dentro dos limiares</li><li>UKC ok: água ≈14.1 m, folga 5.8 m (−0.3 m ondulação) (73% do calado)</li><li>ETA fora de janela de estofa (BM 13h)</li></ul>
           </div>
         </div>
         <div class="navio">
-          <span class="farol" style="background:#1E7A5A"></span>
-          <div>
-            <div class="nnome">GULF BLUE</div>
-            <div class="nmeta">entrada · 20/07 09:00 · calado 3.5 m · Misto - Carga geral / Contentores</div>
-            <div class='nmeta'>CAIS DO POÇO DO BISPO / TMPB</div>
-            <div class="nmot">condições dentro dos limiares; UKC ok: água ≈15.1 m, folga 11.6 m (333% do calado)</div>
+          <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
+          <div class="navio-corpo">
+            <div class="nnome-linha"><span class="nnome">CTM ISTMO</span>
+            <span class="nestado">GO</span></div>
+            <div class="nmeta">entrada · 21/07 07:00</div>
+            <div class='chips'><span class='chip'>Porta-contentores</span><span class='chip'>calado 8.9 m</span><span class='chip'>TERM CONTENT ALCANTARA /  LISCONT</span></div>
+            <ul class='nmot'><li>condições dentro dos limiares</li><li>UKC ok: água ≈15.2 m, folga 6.1 m (−0.3 m ondulação) (68% do calado)</li><li>ETA fora de janela de estofa (PM 08h)</li></ul>
           </div>
         </div>
         <div class="navio">
-          <span class="farol" style="background:#1E7A5A"></span>
-          <div>
-            <div class="nnome">SEAHOPE</div>
-            <div class="nmeta">entrada · 20/07 09:00 · calado 10.12 m · Graneleiro</div>
-            <div class='nmeta'>TERM CONTENT ALCANTARA/LISCONT-JUSANTE</div>
-            <div class="nmot">condições dentro dos limiares; UKC ok: água ≈15.1 m, folga 5.0 m (50% do calado)</div>
+          <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
+          <div class="navio-corpo">
+            <div class="nnome-linha"><span class="nnome">SINAR BUKITTINGGI</span>
+            <span class="nestado">GO</span></div>
+            <div class="nmeta">entrada · 21/07 07:00</div>
+            <div class='chips'><span class='chip'>Porta-Contentores</span><span class='chip'>calado 8.7 m</span><span class='chip'>TERM CONTENT ALCANTARA /  LISCONT</span></div>
+            <ul class='nmot'><li>condições dentro dos limiares</li><li>UKC ok: água ≈15.2 m, folga 6.3 m (−0.3 m ondulação) (72% do calado)</li><li>ETA fora de janela de estofa (PM 08h)</li></ul>
           </div>
         </div>
         <div class="navio">
-          <span class="farol" style="background:#1E7A5A"></span>
-          <div>
-            <div class="nnome">MH SHOGUN</div>
-            <div class="nmeta">entrada · 20/07 12:00 · calado 8.5 m · Petroleiro para carregamento de crude</div>
-            <div class='nmeta'>TERM GRANEIS CHANE/BARREIRO</div>
-            <div class="nmot">condições dentro dos limiares; UKC ok: água ≈13.9 m, folga 5.4 m (64% do calado)</div>
+          <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
+          <div class="navio-corpo">
+            <div class="nnome-linha"><span class="nnome">GALBOT</span>
+            <span class="nestado">GO</span></div>
+            <div class="nmeta">entrada · 21/07 09:00</div>
+            <div class='chips'><span class='chip'>Tanque Químico</span><span class='chip'>calado 7.1 m</span><span class='chip'>EST.ASSIST.NAVAL PORTO LISBOA</span></div>
+            <ul class='nmot'><li>condições dentro dos limiares</li><li>UKC ok: água ≈15.3 m, folga 7.9 m (−0.3 m ondulação) (111% do calado)</li><li>ETA fora de janela de estofa (PM 08h)</li></ul>
           </div>
         </div>
         <div class="navio">
-          <span class="farol" style="background:#1E7A5A"></span>
-          <div>
-            <div class="nnome">EA GANNET</div>
-            <div class="nmeta">entrada · 20/07 15:01 · calado 8 m · Porta-Contentores</div>
-            <div class='nmeta'>TERM CONTENT ALCANTARA /  LISCONT</div>
-            <div class="nmot">condições dentro dos limiares; UKC ok: água ≈14.1 m, folga 6.1 m (76% do calado)</div>
+          <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
+          <div class="navio-corpo">
+            <div class="nnome-linha"><span class="nnome">FIRDEVS</span>
+            <span class="nestado">GO</span></div>
+            <div class="nmeta">entrada · 21/07 10:00</div>
+            <div class='chips'><span class='chip'>Misto - Carga geral / Contentores</span><span class='chip'>calado 5.45 m</span><span class='chip'>TERM.GR.ALIM.BEATO / SILOTAGUS</span></div>
+            <ul class='nmot'><li>condições dentro dos limiares</li><li>UKC ok: água ≈15.0 m, folga 9.3 m (−0.3 m ondulação) (170% do calado)</li><li>ETA fora de janela de estofa (PM 08h)</li></ul>
           </div>
         </div>
         <div class="navio">
-          <span class="farol" style="background:#5C6E7C"></span>
-          <div>
-            <div class="nnome">CTM ISTMO</div>
-            <div class="nmeta">entrada · 21/07 07:00 · calado 8.9 m · Porta-contentores</div>
-            <div class='nmeta'>TERM CONTENT ALCANTARA /  LISCONT</div>
-            <div class="nmot">fora do horizonte da previsão</div>
+          <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
+          <div class="navio-corpo">
+            <div class="nnome-linha"><span class="nnome">AFINA I</span>
+            <span class="nestado">GO</span></div>
+            <div class="nmeta">entrada · 21/07 12:00</div>
+            <div class='chips'><span class='chip'>Carga Geral</span><span class='chip'>calado 5.1 m</span><span class='chip'>CAIS DO BEATO / TMB</span></div>
+            <ul class='nmot'><li>condições dentro dos limiares</li><li>UKC ok: água ≈14.3 m, folga 8.9 m (−0.3 m ondulação) (175% do calado)</li><li>ETA fora de janela de estofa (BM 14h)</li></ul>
           </div>
         </div>
         <div class="navio">
-          <span class="farol" style="background:#5C6E7C"></span>
-          <div>
-            <div class="nnome">SINAR BUKITTINGGI</div>
-            <div class="nmeta">entrada · 21/07 07:00 · calado 8.7 m · Porta-Contentores</div>
-            <div class='nmeta'>TERM CONTENT ALCANTARA /  LISCONT</div>
-            <div class="nmot">fora do horizonte da previsão</div>
+          <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
+          <div class="navio-corpo">
+            <div class="nnome-linha"><span class="nnome">X-PRESS KAVERI</span>
+            <span class="nestado">GO</span></div>
+            <div class="nmeta">entrada · 21/07 16:00</div>
+            <div class='chips'><span class='chip'>Porta-Contentores</span><span class='chip'>calado 7 m</span><span class='chip'>TERM CONTENT ALCANTARA /  LISCONT</span></div>
+            <ul class='nmot'><li>condições dentro dos limiares</li><li>UKC ok: água ≈14.2 m, folga 6.9 m (−0.3 m ondulação) (99% do calado)</li><li>ETA fora de janela de estofa (BM 14h)</li></ul>
           </div>
         </div>
         <div class="navio">
-          <span class="farol" style="background:#5C6E7C"></span>
-          <div>
-            <div class="nnome">GALBOT</div>
-            <div class="nmeta">entrada · 21/07 09:00 · calado 7.1 m · Tanque Químico</div>
-            <div class='nmeta'>EST.ASSIST.NAVAL PORTO LISBOA</div>
-            <div class="nmot">fora do horizonte da previsão</div>
+          <span class="farol" style="background:#C0392B" aria-hidden="true"></span>
+          <div class="navio-corpo">
+            <div class="nnome-linha"><span class="nnome">EASTERN HEATHER</span>
+            <span class="nestado">NO-GO</span></div>
+            <div class="nmeta">entrada · 21/07 16:00</div>
+            <div class='chips'><span class='chip'>Graneleiro</span><span class='chip'>calado 131 m</span><span class='chip'>TERM GRANEIS SOVENA/PALENÇA</span></div>
+            <ul class='nmot'><li>condições dentro dos limiares</li><li>UKC insuficiente: água ≈14.2 m, folga -117.1 m (−0.3 m ondulação) (-89% do calado)</li><li>ETA fora de janela de estofa (BM 14h)</li></ul>
           </div>
         </div>
         <div class="navio">
-          <span class="farol" style="background:#5C6E7C"></span>
-          <div>
-            <div class="nnome">FIRDEVS</div>
-            <div class="nmeta">entrada · 21/07 10:00 · calado 5.45 m · Misto - Carga geral / Contentores</div>
-            <div class='nmeta'>TERM.GR.ALIM.BEATO / SILOTAGUS</div>
-            <div class="nmot">fora do horizonte da previsão</div>
+          <span class="farol" style="background:#1E7A5A" aria-hidden="true"></span>
+          <div class="navio-corpo">
+            <div class="nnome-linha"><span class="nnome">API BHUM</span>
+            <span class="nestado">GO</span></div>
+            <div class="nmeta">entrada · 21/07 19:00</div>
+            <div class='chips'><span class='chip'>Porta-Contentores</span><span class='chip'>calado 10 m</span><span class='chip'>TERM CONTENT ALCANTARA /  LISCONT</span></div>
+            <ul class='nmot'><li>condições dentro dos limiares</li><li>UKC ok: água ≈15.2 m, folga 4.9 m (−0.3 m ondulação) (49% do calado)</li><li>ETA fora de janela de estofa (PM 20h)</li></ul>
           </div>
         </div>
         <div class="navio">
-          <span class="farol" style="background:#5C6E7C"></span>
-          <div>
-            <div class="nnome">AFINA I</div>
-            <div class="nmeta">entrada · 21/07 12:00 · calado 5.1 m · Carga Geral</div>
-            <div class='nmeta'>CAIS DO BEATO / TMB</div>
-            <div class="nmot">fora do horizonte da previsão</div>
+          <span class="farol" style="background:#5C6E7C" aria-hidden="true"></span>
+          <div class="navio-corpo">
+            <div class="nnome-linha"><span class="nnome">ULTIMAX</span>
+            <span class="nestado">sem avaliação</span></div>
+            <div class="nmeta">entrada · 22/07 08:00</div>
+            <div class='chips'><span class='chip'>Carga Geral / Toros e Madeira</span><span class='chip'>calado 7.64 m</span><span class='chip'>FUNDEADOURO QUADRO CENTRAL</span></div>
+            <ul class='nmot'><li>fora do horizonte da previsão</li></ul>
           </div>
         </div>
         <div class="navio">
-          <span class="farol" style="background:#5C6E7C"></span>
-          <div>
-            <div class="nnome">X-PRESS KAVERI</div>
-            <div class="nmeta">entrada · 21/07 16:00 · calado 7 m · Porta-Contentores</div>
-            <div class='nmeta'>TERM CONTENT ALCANTARA /  LISCONT</div>
-            <div class="nmot">fora do horizonte da previsão</div>
+          <span class="farol" style="background:#5C6E7C" aria-hidden="true"></span>
+          <div class="navio-corpo">
+            <div class="nnome-linha"><span class="nnome">OLYMPIC DELTA</span>
+            <span class="nestado">sem avaliação</span></div>
+            <div class="nmeta">entrada · 22/07 12:00</div>
+            <div class='chips'><span class='chip'>Sondagem / Exploração ao largo</span><span class='chip'>calado 6.1 m</span><span class='chip'>CAIS DA ROCHA/TERMINAL DE PASSAGEIROS</span></div>
+            <ul class='nmot'><li>fora do horizonte da previsão</li></ul>
           </div>
         </div>
         <div class="navio">
-          <span class="farol" style="background:#5C6E7C"></span>
-          <div>
-            <div class="nnome">EASTERN HEATHER</div>
-            <div class="nmeta">entrada · 21/07 16:00 · calado 131 m · Graneleiro</div>
-            <div class='nmeta'>TERM GRANEIS SOVENA/PALENÇA</div>
-            <div class="nmot">fora do horizonte da previsão</div>
+          <span class="farol" style="background:#5C6E7C" aria-hidden="true"></span>
+          <div class="navio-corpo">
+            <div class="nnome-linha"><span class="nnome">MANDO</span>
+            <span class="nestado">sem avaliação</span></div>
+            <div class="nmeta">entrada · 22/07 16:00</div>
+            <div class='chips'><span class='chip'>Porta-contentores</span><span class='chip'>calado 8 m</span><span class='chip'>TERM CONTENT ALCANTARA /  LISCONT</span></div>
+            <ul class='nmot'><li>fora do horizonte da previsão</li></ul>
           </div>
         </div>
         <div class="navio">
-          <span class="farol" style="background:#5C6E7C"></span>
-          <div>
-            <div class="nnome">API BHUM</div>
-            <div class="nmeta">entrada · 21/07 19:00 · calado 10 m · Porta-Contentores</div>
-            <div class='nmeta'>TERM CONTENT ALCANTARA /  LISCONT</div>
-            <div class="nmot">fora do horizonte da previsão</div>
+          <span class="farol" style="background:#5C6E7C" aria-hidden="true"></span>
+          <div class="navio-corpo">
+            <div class="nnome-linha"><span class="nnome">CANNETO M</span>
+            <span class="nestado">sem avaliação</span></div>
+            <div class="nmeta">entrada · 22/07 20:30</div>
+            <div class='chips'><span class='chip'>Petroleiro para carregamento de crude</span><span class='chip'>calado 7 m</span><span class='chip'>TERM GRANEIS CHANE/BARREIRO</span></div>
+            <ul class='nmot'><li>fora do horizonte da previsão</li></ul>
           </div>
         </div>
         <div class="navio">
-          <span class="farol" style="background:#5C6E7C"></span>
-          <div>
-            <div class="nnome">ULTIMAX</div>
-            <div class="nmeta">entrada · 22/07 08:00 · calado 7.64 m · Carga Geral / Toros e Madeira</div>
-            <div class='nmeta'>FUNDEADOURO QUADRO CENTRAL</div>
-            <div class="nmot">fora do horizonte da previsão</div>
+          <span class="farol" style="background:#5C6E7C" aria-hidden="true"></span>
+          <div class="navio-corpo">
+            <div class="nnome-linha"><span class="nnome">NAUTICA</span>
+            <span class="nestado">sem avaliação</span></div>
+            <div class="nmeta">entrada · 23/07 05:45</div>
+            <div class='chips'><span class='chip'>CRUZEIROS</span><span class='chip'>calado 6.1 m</span><span class='chip'>CAIS DE STª APOLONIA/TERMINAL DE PASSAGEIROS</span></div>
+            <ul class='nmot'><li>fora do horizonte da previsão</li></ul>
           </div>
         </div>
         <div class="navio">
-          <span class="farol" style="background:#5C6E7C"></span>
-          <div>
-            <div class="nnome">MANDO</div>
-            <div class="nmeta">entrada · 22/07 16:00 · calado 8 m · Porta-contentores</div>
-            <div class='nmeta'>TERM CONTENT ALCANTARA /  LISCONT</div>
-            <div class="nmot">fora do horizonte da previsão</div>
+          <span class="farol" style="background:#5C6E7C" aria-hidden="true"></span>
+          <div class="navio-corpo">
+            <div class="nnome-linha"><span class="nnome">LAGOA</span>
+            <span class="nestado">sem avaliação</span></div>
+            <div class="nmeta">entrada · 23/07 08:00</div>
+            <div class='chips'><span class='chip'>Porta-contentores</span><span class='chip'>calado 6 m</span><span class='chip'>TERMINAL MULTIPURPOSE DE LISBOA</span></div>
+            <ul class='nmot'><li>fora do horizonte da previsão</li></ul>
           </div>
         </div>
         <div class="navio">
-          <span class="farol" style="background:#5C6E7C"></span>
-          <div>
-            <div class="nnome">CANNETO M</div>
-            <div class="nmeta">entrada · 22/07 20:30 · calado 7 m · Petroleiro para carregamento de crude</div>
-            <div class='nmeta'>TERM GRANEIS CHANE/BARREIRO</div>
-            <div class="nmot">fora do horizonte da previsão</div>
+          <span class="farol" style="background:#5C6E7C" aria-hidden="true"></span>
+          <div class="navio-corpo">
+            <div class="nnome-linha"><span class="nnome">EUROPA 2</span>
+            <span class="nestado">sem avaliação</span></div>
+            <div class="nmeta">entrada · 23/07 10:00</div>
+            <div class='chips'><span class='chip'>CRUZEIROS</span><span class='chip'>calado 6.3 m</span><span class='chip'>CAIS DE STª APOLONIA/TERMINAL DE PASSAGEIROS</span></div>
+            <ul class='nmot'><li>fora do horizonte da previsão</li></ul>
+          </div>
+        </div>
+        <div class="navio">
+          <span class="farol" style="background:#5C6E7C" aria-hidden="true"></span>
+          <div class="navio-corpo">
+            <div class="nnome-linha"><span class="nnome">NYK VENUS</span>
+            <span class="nestado">sem avaliação</span></div>
+            <div class="nmeta">entrada · 23/07 10:00</div>
+            <div class='chips'><span class='chip'>Porta-Contentores</span><span class='chip'>calado 10.5 m</span><span class='chip'>TERM CONTENT ALCANTARA /  LISCONT</span></div>
+            <ul class='nmot'><li>fora do horizonte da previsão</li></ul>
+          </div>
+        </div>
+        <div class="navio">
+          <span class="farol" style="background:#5C6E7C" aria-hidden="true"></span>
+          <div class="navio-corpo">
+            <div class="nnome-linha"><span class="nnome">AIDAstella</span>
+            <span class="nestado">sem avaliação</span></div>
+            <div class="nmeta">entrada · 23/07 13:15</div>
+            <div class='chips'><span class='chip'>CRUZEIROS</span><span class='chip'>calado 7.3 m</span><span class='chip'>CAIS DE STª APOLONIA/TERMINAL DE PASSAGEIROS</span></div>
+            <ul class='nmot'><li>fora do horizonte da previsão</li></ul>
           </div>
         </div>
 </section>
 
-<section>
- <h2>Em porto agora (9)</h2>
- <div class='navio'><span class='farol' style='background:#5C6E7C'></span><div><div class='nnome'>Arklow Glen</div><div class='nmeta'>Carga Geral · CAIS DO BEATO / TMB</div><div class='nmeta'>ETD prevista: 24/07 06:00</div></div></div><div class='navio'><span class='farol' style='background:#5C6E7C'></span><div><div class='nnome'>ATLANTICO</div><div class='nmeta'>Porta-Contentores · TERM CONTENT STª APOLONIA/SOTAGUS</div><div class='nmeta'>ETD prevista: 18/07 23:00</div></div></div><div class='navio'><span class='farol' style='background:#5C6E7C'></span><div><div class='nnome'>AÇOR B</div><div class='nmeta'>Carga Geral / Contentores · TERM CONTENT STª APOLONIA/SOTAGUS</div><div class='nmeta'>ETD prevista: 19/07 23:59</div></div></div><div class='navio'><span class='farol' style='background:#5C6E7C'></span><div><div class='nnome'>PONTA DO SOL</div><div class='nmeta'>Porta-contentores · TERMINAL MULTIPURPOSE DE LISBOA</div><div class='nmeta'>ETD prevista: 18/07 20:00</div></div></div><div class='navio'><span class='farol' style='background:#5C6E7C'></span><div><div class='nnome'>MANDO</div><div class='nmeta'>Porta-contentores · TERM CONTENT ALCANTARA /  LISCONT</div><div class='nmeta'>ETD prevista: 18/07 20:00</div></div></div><div class='navio'><span class='farol' style='background:#5C6E7C'></span><div><div class='nnome'>ILHA DA MADEIRA</div><div class='nmeta'>Porta-contentores · TERMINAL MULTIPURPOSE DE LISBOA</div><div class='nmeta'>ETD prevista: 17/07 22:00</div></div></div><div class='navio'><span class='farol' style='background:#5C6E7C'></span><div><div class='nnome'>JUGURTHA</div><div class='nmeta'>Navio Guerra · CAIS DA ROCHA/TERMINAL DE PASSAGEIROS</div><div class='nmeta'>ETD prevista: 19/07 08:15</div></div></div><div class='navio'><span class='farol' style='background:#5C6E7C'></span><div><div class='nnome'>SOPHONISBE</div><div class='nmeta'>Navio Guerra · CAIS DA ROCHA/TERMINAL DE PASSAGEIROS</div><div class='nmeta'>ETD prevista: 19/07 08:15</div></div></div><div class='navio'><span class='farol' style='background:#5C6E7C'></span><div><div class='nnome'>MARVELOUS STAR</div><div class='nmeta'>Graneleiro · TERM.GR.ALIM.TRAFARIA / SILOTAGUS</div><div class='nmeta'>ETD prevista: 20/07 20:00</div></div></div>
+<section aria-labelledby="porto-titulo">
+ <h2 id="porto-titulo">Em porto agora (9)</h2>
+ <div class='navio'><span class='farol' style='background:#5C6E7C' aria-hidden='true'></span><div class='navio-corpo'><div class='nnome-linha'><span class='nnome'>JAIME S</span></div><div class='chips'><span class='chip'>Porta-Contentores</span><span class='chip'>TERM CONTENT STª APOLONIA/SOTAGUS</span></div><div class='nmeta'>ETD prevista: 21/07 23:59</div></div></div><div class='navio'><span class='farol' style='background:#5C6E7C' aria-hidden='true'></span><div class='navio-corpo'><div class='nnome-linha'><span class='nnome'>SMIRNI</span></div><div class='chips'><span class='chip'>Graneleiro</span><span class='chip'>TERM GRANEIS SOVENA/PALENÇA</span></div><div class='nmeta'>ETD prevista: 21/07 06:00</div></div></div><div class='navio'><span class='farol' style='background:#5C6E7C' aria-hidden='true'></span><div class='navio-corpo'><div class='nnome-linha'><span class='nnome'>IRENES RESOLVE</span></div><div class='chips'><span class='chip'>Porta-contentores</span><span class='chip'>TERM CONTENT ALCANTARA /  LISCONT</span></div><div class='nmeta'>ETD prevista: 19/07 23:59</div></div></div><div class='navio'><span class='farol' style='background:#5C6E7C' aria-hidden='true'></span><div class='navio-corpo'><div class='nnome-linha'><span class='nnome'>GRETA K</span></div><div class='chips'><span class='chip'>Tanque Petroleiro</span><span class='chip'>TERM COMB REPSOL/BANATICA</span></div><div class='nmeta'>ETD prevista: 20/07 23:00</div></div></div><div class='navio'><span class='farol' style='background:#5C6E7C' aria-hidden='true'></span><div class='navio-corpo'><div class='nnome-linha'><span class='nnome'>Arklow Glen</span></div><div class='chips'><span class='chip'>Carga Geral</span><span class='chip'>CAIS DO BEATO / TMB</span></div><div class='nmeta'>ETD prevista: 24/07 06:00</div></div></div><div class='navio'><span class='farol' style='background:#5C6E7C' aria-hidden='true'></span><div class='navio-corpo'><div class='nnome-linha'><span class='nnome'>AÇOR B</span></div><div class='chips'><span class='chip'>Carga Geral / Contentores</span><span class='chip'>TERM CONTENT STª APOLONIA/SOTAGUS</span></div><div class='nmeta'>ETD prevista: 19/07 16:00</div></div></div><div class='navio'><span class='farol' style='background:#5C6E7C' aria-hidden='true'></span><div class='navio-corpo'><div class='nnome-linha'><span class='nnome'>JUGURTHA</span></div><div class='chips'><span class='chip'>Navio Guerra</span><span class='chip'>CAIS DA ROCHA/TERMINAL DE PASSAGEIROS</span></div><div class='nmeta'>ETD prevista: 19/07 08:15</div></div></div><div class='navio'><span class='farol' style='background:#5C6E7C' aria-hidden='true'></span><div class='navio-corpo'><div class='nnome-linha'><span class='nnome'>SOPHONISBE</span></div><div class='chips'><span class='chip'>Navio Guerra</span><span class='chip'>CAIS DA ROCHA/TERMINAL DE PASSAGEIROS</span></div><div class='nmeta'>ETD prevista: 19/07 08:15</div></div></div><div class='navio'><span class='farol' style='background:#5C6E7C' aria-hidden='true'></span><div class='navio-corpo'><div class='nnome-linha'><span class='nnome'>MARVELOUS STAR</span></div><div class='chips'><span class='chip'>Graneleiro</span><span class='chip'>TERM.GR.ALIM.TRAFARIA / SILOTAGUS</span></div><div class='nmeta'>ETD prevista: 20/07 20:00</div></div></div>
 </section>
 
-<section>
- <h2>Regras em vigor</h2>
- <table><thead><tr><th>Regra</th><th>Âmbar</th><th>Vermelho</th>
- <th>Fonte</th></tr></thead><tbody><tr><td>Ondulação (swell) de W/SW na aproximação</td><td>≥ 2.5</td><td>≥ 3.5</td><td class='fonte-ph'>PLACEHOLDER — validar com piloto</td></tr><tr><td>Período de swell longo (mar de fundo pesado)</td><td>≥ 12</td><td>≥ 16</td><td class='fonte-ph'>PLACEHOLDER — validar com piloto</td></tr><tr><td>Altura significativa total (mar composto)</td><td>≥ 3</td><td>≥ 4.5</td><td class='fonte-ph'>PLACEHOLDER — validar com piloto</td></tr><tr><td>Vento médio a 10 m</td><td>≥ 25</td><td>≥ 35</td><td class='fonte-ph'>PLACEHOLDER — validar com piloto</td></tr><tr><td>Rajada</td><td>≥ 35</td><td>≥ 45</td><td class='fonte-ph'>PLACEHOLDER — validar com piloto</td></tr></tbody></table>
+<section aria-labelledby="regras-titulo">
+ <h2 id="regras-titulo">Regras em vigor</h2>
+ <div class="scroll">
+ <table><thead><tr><th>Regra</th><th>Sentido</th><th>Âmbar</th>
+ <th>Vermelho</th><th>Fonte</th></tr></thead>
+ <tbody><tr><td>Ondulação (swell) de W/SW na aproximação</td><td>≥</td><td>2.5</td><td>3.5</td><td class='fonte-ph'>PLACEHOLDER — validar com piloto</td></tr><tr><td>Período de swell longo (mar de fundo pesado)</td><td>≥</td><td>12</td><td>16</td><td class='fonte-ph'>PLACEHOLDER — validar com piloto</td></tr><tr><td>Altura significativa total (mar composto)</td><td>≥</td><td>3</td><td>4.5</td><td class='fonte-ph'>PLACEHOLDER — validar com piloto</td></tr><tr><td>Vento médio a 10 m</td><td>≥</td><td>25</td><td>35</td><td class='fonte-ph'>PLACEHOLDER — validar com piloto</td></tr><tr><td>Rajada</td><td>≥</td><td>35</td><td>45</td><td class='fonte-ph'>PLACEHOLDER — validar com piloto</td></tr><tr><td>Visibilidade horizontal</td><td>≤</td><td>3704</td><td>1852</td><td class='fonte-ph'>PLACEHOLDER — doc de análise cita 1 MN como limiar típico de suspensão de manobras por nevoeiro; artigo do edital da Capitania por confirmar</td></tr><tr><td>Corrente na aproximação</td><td>≥</td><td>2</td><td>3</td><td class='fonte-ph'>PLACEHOLDER — validar com piloto</td></tr><tr><td>Embarque do piloto (Hs na zona de embarque)</td><td>≥</td><td>2.5</td><td>3</td><td class='fonte-ph'>PLACEHOLDER — doc de análise secção 5.2: acima de ~2.5-3 m de Hs a lancha dos pilotos tipicamente não opera; gate de primeiro nível, por confirmar</td></tr></tbody></table>
+ </div>
  <ul><li>O Capitão do Porto pode fechar ou condicionar a barra com base nas condições de tempo e mar, ouvida a Autoridade Portuária (Edital CPL).</li><li>Pilotagem obrigatória desde fora das barras para os navios abrangidos; embarque do piloto conforme Regulamento de Autoridade Portuária da APL.</li><li>Navios-tanque com cargas perigosas das classes 2, 6 e 8 têm restrições específicas (Regulamento APL).</li><li>Avisos em vigor: VTS-Lisboa, Capitania e ANAVNET (anavnet.hidrografico.pt).</li></ul>
 </section>
+</main>
 
 <footer>Nível do mar: modelo Open-Meteo (não são as tabelas oficiais do
 Instituto Hidrográfico). Dados APL © Administração do Porto de Lisboa.
@@ -365,15 +463,26 @@ Projeto pessoal, código aberto.</footer>
 (function () {
   var det = document.getElementById('detalhe');
   var cels = Array.prototype.slice.call(document.querySelectorAll('.cel'));
+  function linha(rotulo, valor) {
+    return valor ? '<div class="det-linha"><b>' + rotulo + ':</b> ' +
+           valor + '</div>' : '';
+  }
   function mostrar(c) {
     cels.forEach(function (x) { x.classList.remove('sel'); });
     c.classList.add('sel');
     var t = c.dataset.t;
-    var linhas = ['<b>' + t.slice(8, 10) + '/' + t.slice(5, 7) + ' ' +
-                  t.slice(11, 13) + 'h</b> — ' + c.dataset.estado];
-    if (c.dataset.motivos) linhas.push(c.dataset.motivos);
-    if (c.dataset.vals) linhas.push(c.dataset.vals);
-    det.innerHTML = linhas.join('<br>');
+    var partes = ['<div class="det-cab"><b>' + t.slice(8, 10) + '/' +
+                  t.slice(5, 7) + ' ' + t.slice(11, 13) + 'h</b> — ' +
+                  c.dataset.rotulo + '</div>'];
+    if (c.dataset.motivos) {
+      partes.push('<div class="det-mot">' + c.dataset.motivos + '</div>');
+    }
+    partes.push(linha('Mar', c.dataset.mar));
+    partes.push(linha('Nível', c.dataset.nivel));
+    partes.push(linha('Vento', c.dataset.vento));
+    partes.push(linha('Corrente', c.dataset.corrente));
+    partes.push(linha('Visibilidade', c.dataset.vis));
+    det.innerHTML = partes.join('');
     det.hidden = false;
   }
   cels.forEach(function (c) {

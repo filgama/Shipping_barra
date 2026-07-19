@@ -33,6 +33,7 @@ import json
 import re
 import sys
 import tomllib
+import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
@@ -54,6 +55,9 @@ SERVICOS_APL = {
 
 ESTADOS = {"verde": 0, "ambar": 1, "vermelho": 2}
 ESTADO_NOME = {0: "verde", 1: "ambar", 2: "vermelho"}
+# Semântica GO/NO-GO (doc de análise, secção 8) para os textos de detalhe;
+# as cores/estados internos 0/1/2 e os nomes verde/ambar/vermelho mantêm-se.
+ESTADO_ROTULO = {0: "GO", 1: "GO condicional", 2: "NO-GO"}
 
 
 # ---------------------------------------------------------------------------
@@ -75,7 +79,8 @@ def _get_json(url: str) -> dict:
 
 def recolher_meteomar(regras: dict, horas: int) -> list[dict]:
     """Lista de dicts por hora: tempo, onda_altura, swell_*, nivel_mar,
-    vento_kn, rajada_kn, vento_dir."""
+    vento_kn, rajada_kn, vento_dir, corrente_kn, corrente_dir,
+    visibilidade_m, e_dia."""
     lat = regras["local"]["latitude"]
     lon = regras["local"]["longitude"]
     dias = max(2, min(7, (horas // 24) + 1))
@@ -85,13 +90,14 @@ def recolher_meteomar(regras: dict, horas: int) -> list[dict]:
         f"?latitude={lat}&longitude={lon}"
         "&hourly=wave_height,wave_direction,wave_period,"
         "swell_wave_height,swell_wave_direction,swell_wave_period,"
-        "sea_level_height_msl"
+        "sea_level_height_msl,ocean_current_velocity,ocean_current_direction"
         f"&timezone=Europe%2FLisbon&forecast_days={dias}"
     )
     vento = _get_json(
         "https://api.open-meteo.com/v1/forecast"
         f"?latitude={lat}&longitude={lon}"
-        "&hourly=wind_speed_10m,wind_gusts_10m,wind_direction_10m"
+        "&hourly=wind_speed_10m,wind_gusts_10m,wind_direction_10m,"
+        "visibility,is_day"
         "&wind_speed_unit=kn"
         f"&timezone=Europe%2FLisbon&forecast_days={dias}"
     )
@@ -104,6 +110,7 @@ def recolher_meteomar(regras: dict, horas: int) -> list[dict]:
                 return bloco[chave][i]
             except (KeyError, IndexError):
                 return None
+        corrente_kmh = g(hm, "ocean_current_velocity")
         linhas.append({
             "tempo": t,
             "onda_altura": g(hm, "wave_height"),
@@ -113,9 +120,14 @@ def recolher_meteomar(regras: dict, horas: int) -> list[dict]:
             "swell_dir": g(hm, "swell_wave_direction"),
             "swell_periodo": g(hm, "swell_wave_period"),
             "nivel_mar": g(hm, "sea_level_height_msl"),
+            "corrente_kn": (round(corrente_kmh * 0.539957, 1)
+                            if corrente_kmh is not None else None),
+            "corrente_dir": g(hm, "ocean_current_direction"),
             "vento_kn": g(hv, "wind_speed_10m"),
             "rajada_kn": g(hv, "wind_gusts_10m"),
             "vento_dir": g(hv, "wind_direction_10m"),
+            "visibilidade_m": g(hv, "visibility"),
+            "e_dia": g(hv, "is_day"),
         })
     return linhas
 
@@ -145,19 +157,32 @@ def avaliar_hora(hora: dict, regras: dict) -> tuple[int, list[str]]:
                 dentro = d >= r["dir_min"] or d <= r["dir_max"]
             if not dentro:
                 continue
-        if val >= r["vermelho"]:
-            estado = max(estado, 2)
-            motivos.append(f"{r['descricao']}: {val:g} ≥ {r['vermelho']:g}")
-        elif val >= r["ambar"]:
-            estado = max(estado, 1)
-            motivos.append(f"{r['descricao']}: {val:g} ≥ {r['ambar']:g}")
+        # sentido "abaixo": o valor é mau quando está ABAIXO do limiar
+        # (ex.: visibilidade). Por defeito ("acima"), mau é quando ≥ limiar.
+        if r.get("sentido") == "abaixo":
+            if val <= r["vermelho"]:
+                estado = max(estado, 2)
+                motivos.append(f"{r['descricao']}: {val:g} ≤ {r['vermelho']:g}")
+            elif val <= r["ambar"]:
+                estado = max(estado, 1)
+                motivos.append(f"{r['descricao']}: {val:g} ≤ {r['ambar']:g}")
+        else:
+            if val >= r["vermelho"]:
+                estado = max(estado, 2)
+                motivos.append(f"{r['descricao']}: {val:g} ≥ {r['vermelho']:g}")
+            elif val >= r["ambar"]:
+                estado = max(estado, 1)
+                motivos.append(f"{r['descricao']}: {val:g} ≥ {r['ambar']:g}")
     return estado, motivos
 
 
-def avaliar_ukc(calado: float, nivel_mar, regras: dict):
+def avaliar_ukc(calado: float, nivel_mar, regras: dict, onda_altura=None):
     """UKC estático simplificado. nivel_mar da Open-Meteo é relativo ao MSL;
     usamos profundidade ZH + nível como aproximação de altura de água.
-    Devolve (estado, texto) ou None se faltar informação."""
+    Se `onda_altura` (Hs) for fornecida, subtrai à folga uma margem de
+    ondulação (fração empírica configurável em regras.toml, aproximação tipo
+    PIANC de resposta vertical do navio à ondulação). Devolve (estado, texto)
+    ou None se faltar informação."""
     if calado is None or nivel_mar is None:
         return None
     prof = regras["canal"]["profundidade_zh"]
@@ -165,15 +190,70 @@ def avaliar_ukc(calado: float, nivel_mar, regras: dict):
     folga = altura_agua - calado
     if calado <= 0:
         return None
-    pct = folga / calado
     u = regras["ukc"]
-    txt = (f"água ≈{altura_agua:.1f} m, folga {folga:.1f} m "
-           f"({pct:.0%} do calado)")
+    folga_efetiva = folga
+    margem_txt = ""
+    if onda_altura is not None:
+        frac = u.get("margem_ondulacao_frac")
+        if frac:
+            margem = frac * onda_altura
+            folga_efetiva = folga - margem
+            margem_txt = f" (−{margem:.1f} m ondulação)"
+    pct = folga_efetiva / calado
+    txt = (f"água ≈{altura_agua:.1f} m, folga {folga_efetiva:.1f} m"
+           f"{margem_txt} ({pct:.0%} do calado)")
     if pct < u["folga_minima_pct"]:
         return 2, "UKC insuficiente: " + txt
     if pct < u["folga_ambar_pct"]:
         return 1, "UKC marginal: " + txt
     return 0, "UKC ok: " + txt
+
+
+def avaliar_navio_tipo(navio: dict, hora: dict, regras: dict) -> list[tuple[int, str]]:
+    """Regras específicas por tipo de navio (ex.: RO-RO vs vento), definidas
+    em regras.toml como `[[regra_navio]]`. Para vento, considera também a
+    rajada quando disponível e usa o pior dos dois. Devolve lista de
+    (estado, motivo)."""
+    tipo = (navio.get("tipo") or "").lower()
+    resultados = []
+    for r in regras.get("regra_navio", []):
+        tipos = [t.lower() for t in r.get("tipos", [])]
+        if not any(t in tipo for t in tipos):
+            continue
+        val = hora.get(r["parametro"])
+        raj = hora.get("rajada_kn") if r["parametro"] == "vento_kn" else None
+        candidatos = [v for v in (val, raj) if v is not None]
+        if not candidatos:
+            continue
+        pior = max(candidatos)
+        vermelho, ambar = r.get("vermelho"), r.get("ambar")
+        if vermelho is not None and pior >= vermelho:
+            resultados.append((2, f"{r['descricao']}: {pior:g} ≥ {vermelho:g}"))
+        elif ambar is not None and pior >= ambar:
+            resultados.append((1, f"{r['descricao']}: {pior:g} ≥ {ambar:g}"))
+    return resultados
+
+
+def detetar_estofas(previsao: list[dict], regras: dict) -> list[dict]:
+    """Deteta preia-mares/baixa-mares (máximos/mínimos locais) na curva de
+    nivel_mar — mesma lógica de deteção usada em gerar_svg_mare. Devolve
+    lista de {"indice", "tipo": "PM"/"BM", "tempo"}. `regras` é aceite para
+    consistência de assinatura (janela_min de [estofa] é usada pelos
+    chamadores, não aqui). NOTA: a estofa da CORRENTE não coincide
+    necessariamente com a PM/BM do nível modelado (ver [estofa] em
+    regras.toml) — desfasamento local não calibrado."""
+    valores = [h.get("nivel_mar") for h in previsao]
+    pares = [(i, v) for i, v in enumerate(valores) if v is not None]
+    estofas = []
+    for k in range(1, len(pares) - 1):
+        i, v = pares[k]
+        antes, depois = pares[k - 1][1], pares[k + 1][1]
+        pm = v >= antes and v > depois
+        bm = v <= antes and v < depois
+        if pm or bm:
+            estofas.append({"indice": i, "tipo": "PM" if pm else "BM",
+                            "tempo": previsao[i]["tempo"]})
+    return estofas
 
 
 SETORES = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
@@ -347,23 +427,43 @@ def gerar_svg_mare(previsao, passo=24, alto=56) -> str:
 
 COR = {0: "#1E7A5A", 1: "#E2B93B", 2: "#C0392B"}
 
+# Favicon inline (sem ficheiros externos): círculo verde/âmbar simples.
+_FAVICON_SVG = ("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'>"
+                "<circle cx='16' cy='16' r='14' fill='#1E7A5A'/>"
+                "<path d='M16 2a14 14 0 0 1 0 28z' fill='#E2B93B'/>"
+                "<circle cx='16' cy='16' r='14' fill='none' stroke='#1B2A38' "
+                "stroke-width='2'/></svg>")
+FAVICON_HREF = "data:image/svg+xml," + urllib.parse.quote(_FAVICON_SVG)
+
 # JS vanilla do painel (string normal — inserida no f-string via {JS_PAINEL}):
-# toque numa célula abre o detalhe; marcador de "agora" pela hora do
-# dispositivo (correto mesmo com página em cache) + auto-scroll.
+# toque/Enter numa célula (agora <button>) abre o detalhe estruturado;
+# marcador de "agora" pela hora do dispositivo (correto mesmo com página em
+# cache) + auto-scroll. prefers-reduced-motion é tratado em CSS.
 JS_PAINEL = """
 <script>
 (function () {
   var det = document.getElementById('detalhe');
   var cels = Array.prototype.slice.call(document.querySelectorAll('.cel'));
+  function linha(rotulo, valor) {
+    return valor ? '<div class="det-linha"><b>' + rotulo + ':</b> ' +
+           valor + '</div>' : '';
+  }
   function mostrar(c) {
     cels.forEach(function (x) { x.classList.remove('sel'); });
     c.classList.add('sel');
     var t = c.dataset.t;
-    var linhas = ['<b>' + t.slice(8, 10) + '/' + t.slice(5, 7) + ' ' +
-                  t.slice(11, 13) + 'h</b> — ' + c.dataset.estado];
-    if (c.dataset.motivos) linhas.push(c.dataset.motivos);
-    if (c.dataset.vals) linhas.push(c.dataset.vals);
-    det.innerHTML = linhas.join('<br>');
+    var partes = ['<div class="det-cab"><b>' + t.slice(8, 10) + '/' +
+                  t.slice(5, 7) + ' ' + t.slice(11, 13) + 'h</b> — ' +
+                  c.dataset.rotulo + '</div>'];
+    if (c.dataset.motivos) {
+      partes.push('<div class="det-mot">' + c.dataset.motivos + '</div>');
+    }
+    partes.push(linha('Mar', c.dataset.mar));
+    partes.push(linha('Nível', c.dataset.nivel));
+    partes.push(linha('Vento', c.dataset.vento));
+    partes.push(linha('Corrente', c.dataset.corrente));
+    partes.push(linha('Visibilidade', c.dataset.vis));
+    det.innerHTML = partes.join('');
     det.hidden = false;
   }
   cels.forEach(function (c) {
@@ -387,43 +487,89 @@ def gerar_html(previsao, avaliacoes, navios, apl, regras) -> str:
     e = html.escape
     agora = datetime.now(timezone.utc).astimezone().strftime("%d/%m/%Y %H:%M")
 
-    # --- timeline: uma célula por hora -----------------------------------
+    # --- estofas (PM/BM), calculadas uma vez e partilhadas com a timeline
+    # e os cartões de navios ------------------------------------------------
+    estofas_globais = detetar_estofas(previsao, regras)
+    estofa_por_indice = {es["indice"]: es["tipo"] for es in estofas_globais}
+    janela_estofa = regras.get("estofa", {}).get("janela_min")
+
+    # --- resumo do estado atual, para o topo da secção timeline -----------
+    agora_dt = datetime.now()
+    agora_iso = agora_dt.strftime("%Y-%m-%dT%H:00")
+    idx_agora = next((i for i, h in enumerate(previsao)
+                      if h["tempo"] == agora_iso), None)
+    resumo_agora = ""
+    if idx_agora is not None:
+        est_a, mot_a = avaliacoes[idx_agora]
+        rot_a = ESTADO_ROTULO[est_a]
+        detalhe_a = mot_a[0] if mot_a else "condições dentro dos limiares"
+        resumo_agora = f"Agora: {rot_a} — {detalhe_a}"
+
+    # --- timeline: um botão por hora ----------------------------------------
     celulas = []
-    for hora, (estado, motivos) in zip(previsao, avaliacoes):
+    for i, (hora, (estado, motivos)) in enumerate(zip(previsao, avaliacoes)):
         t = hora["tempo"]  # "2026-07-18T14:00"
         dia, hh = t[8:10], t[11:13]
-        vals = []
+        mar_txt = ""
         if hora.get("swell_altura") is not None:
             nome, seta = cardeal_seta(hora.get("swell_dir"))
-            per = (f" {hora['swell_periodo']:g} s"
+            per = (f" · {hora['swell_periodo']:g} s"
                    if hora.get("swell_periodo") is not None else "")
-            vals.append(f"swell {hora['swell_altura']:g} m {nome}{seta}{per}")
-        if hora.get("nivel_mar") is not None:
-            vals.append(f"nível {hora['nivel_mar']:+g} m")
+            mar_txt = f"swell {hora['swell_altura']:g} m {nome}{seta}{per}"
+        nivel_txt = (f"{hora['nivel_mar']:+g} m"
+                     if hora.get("nivel_mar") is not None else "")
+        vento_txt = ""
         if hora.get("vento_kn") is not None:
             nome, seta = cardeal_seta(hora.get("vento_dir"))
-            raj = (f" (raj {hora['rajada_kn']:g})"
+            raj = (f" · rajada {hora['rajada_kn']:g} kn"
                    if hora.get("rajada_kn") is not None else "")
-            vals.append(f"vento {hora['vento_kn']:g} kn {nome}{seta}{raj}")
-        vals_txt = " · ".join(vals)
+            vento_txt = f"{hora['vento_kn']:g} kn {nome}{seta}{raj}"
+        corrente_txt = ""
+        if hora.get("corrente_kn") is not None:
+            nome, seta = cardeal_seta(hora.get("corrente_dir"))
+            corrente_txt = f"{hora['corrente_kn']:g} kn {nome}{seta}"
+        vis_txt = (f"{hora['visibilidade_m'] / 1000:.1f} km"
+                   if hora.get("visibilidade_m") is not None else "")
         mot_txt = "; ".join(motivos)
-        tip = f"{dia}/{t[5:7]} {hh}h — {ESTADO_NOME[estado]}"
-        if mot_txt:
-            tip += " · " + mot_txt
-        if vals_txt:
-            tip += " · " + vals_txt
+        if estado == 1 and mot_txt:
+            mot_txt = "Condicionantes: " + mot_txt
+        rotulo = ESTADO_ROTULO[estado]
         marca_dia = f"<span class='dia'>{dia}</span>" if hh == "00" else ""
         extra_cls = " cel-a" if estado == 1 else ""
+        noite_cls = " cel-noite" if hora.get("e_dia") == 0 else ""
+        estofa_tipo = estofa_por_indice.get(i)
+        estofa_cls = (f" cel-estofa cel-{estofa_tipo.lower()}"
+                     if estofa_tipo else "")
+        # indicador não-cromático de estado (daltonismo): ▲ vermelho, ~ âmbar
+        glifo = ""
+        if estado == 2:
+            glifo = "<span class='glifo' aria-hidden='true'>▲</span>"
+        elif estado == 1:
+            glifo = "<span class='glifo' aria-hidden='true'>~</span>"
+        marca_estofa = (f"<span class='marca-estofa' aria-hidden='true'>"
+                        f"{estofa_tipo}</span>" if estofa_tipo else "")
+        aria = f"{dia}/{t[5:7]} {hh}h — {rotulo}"
+        if mot_txt:
+            aria += ". " + mot_txt
+        if estofa_tipo:
+            aria += f". {estofa_tipo} (estofa)"
+        if hora.get("e_dia") == 0:
+            aria += ". Noite"
         celulas.append(
-            f"<div class='cel{extra_cls}' style='background:{COR[estado]}' "
-            f"title=\"{e(tip)}\" data-t='{t}' "
-            f"data-estado='{ESTADO_NOME[estado]}' "
-            f"data-motivos=\"{e(mot_txt)}\" data-vals=\"{e(vals_txt)}\">"
-            f"{marca_dia}<span class='hh'>{hh}</span></div>")
+            f"<button type='button' class='cel{extra_cls}{noite_cls}"
+            f"{estofa_cls}' style='background:{COR[estado]}' data-t='{t}' "
+            f"data-estado='{ESTADO_NOME[estado]}' data-rotulo='{e(rotulo)}' "
+            f"data-motivos=\"{e(mot_txt)}\" data-mar=\"{e(mar_txt)}\" "
+            f"data-nivel=\"{e(nivel_txt)}\" data-vento=\"{e(vento_txt)}\" "
+            f"data-corrente=\"{e(corrente_txt)}\" data-vis=\"{e(vis_txt)}\" "
+            f"aria-label=\"{e(aria)}\">"
+            f"{marca_dia}{glifo}{marca_estofa}"
+            f"<span class='hh'>{hh}</span></button>")
 
     # --- navios ------------------------------------------------------------
     cartoes = []
     for n in sorted(navios, key=lambda x: (x["momento"] or datetime.max)):
+        nota_estofa = None
         if n["momento"] is None:
             estado_n, motivos_n = None, ["sem data reconhecida na tabela APL"]
         else:
@@ -436,27 +582,56 @@ def gerar_html(previsao, avaliacoes, navios, apl, regras) -> str:
                 estado_n, motivos_n = avaliacoes[idx]
                 motivos_n = list(motivos_n) or ["condições dentro dos limiares"]
                 ukc = avaliar_ukc(n["calado"], previsao[idx]["nivel_mar"],
-                                  regras)
+                                  regras, previsao[idx].get("onda_altura"))
                 if ukc:
                     estado_n = max(estado_n, ukc[0])
                     motivos_n.append(ukc[1])
                 elif n["calado"] is None:
                     motivos_n.append("calado não detetado — UKC não avaliado")
+                for est_nav, motivo_nav in avaliar_navio_tipo(
+                        n, previsao[idx], regras):
+                    estado_n = max(estado_n, est_nav)
+                    motivos_n.append(motivo_nav)
+                # estofa: apenas informativo, não altera o estado
+                if estofas_globais:
+                    prox = min(estofas_globais,
+                              key=lambda es: abs(es["indice"] - idx))
+                    delta_min = abs(prox["indice"] - idx) * 60
+                    hh_estofa = prox["tempo"][11:13]
+                    if janela_estofa and delta_min <= janela_estofa:
+                        nota_estofa = (f"ETA a {delta_min:g} min da estofa "
+                                       f"({prox['tipo']} {hh_estofa}h)")
+                    else:
+                        nota_estofa = (f"ETA fora de janela de estofa "
+                                       f"({prox['tipo']} {hh_estofa}h)")
         cor = COR.get(estado_n, "#5C6E7C")
+        rot_n = ESTADO_ROTULO.get(estado_n, "sem avaliação")
         quando = (n["momento"].strftime("%d/%m %H:%M")
                   if n["momento"] else "—")
-        cal = f" · calado {n['calado']:g} m" if n["calado"] else ""
-        tipo = f" · {e(n['tipo'])}" if n.get("tipo") else ""
-        zona = (f"<div class='nmeta'>{e(n['zona'])}</div>"
-                if n.get("zona") else "")
+        chips = []
+        if n.get("tipo"):
+            chips.append(f"<span class='chip'>{e(n['tipo'])}</span>")
+        if n["calado"]:
+            chips.append(f"<span class='chip'>calado {n['calado']:g} m</span>")
+        if n.get("zona"):
+            chips.append(f"<span class='chip'>{e(n['zona'])}</span>")
+        chips_html = (f"<div class='chips'>{''.join(chips)}</div>"
+                     if chips else "")
+        itens_mot = list(motivos_n)
+        if nota_estofa:
+            itens_mot.append(nota_estofa)
+        mot_html = (("<ul class='nmot'>" +
+                    "".join(f"<li>{e(m)}</li>" for m in itens_mot) +
+                    "</ul>") if itens_mot else "")
         cartoes.append(f"""
         <div class="navio">
-          <span class="farol" style="background:{cor}"></span>
-          <div>
-            <div class="nnome">{e(n['nome'])}</div>
-            <div class="nmeta">{e(n['sentido'])} · {quando}{cal}{tipo}</div>
-            {zona}
-            <div class="nmot">{e('; '.join(motivos_n))}</div>
+          <span class="farol" style="background:{cor}" aria-hidden="true"></span>
+          <div class="navio-corpo">
+            <div class="nnome-linha"><span class="nnome">{e(n['nome'])}</span>
+            <span class="nestado">{e(rot_n)}</span></div>
+            <div class="nmeta">{e(n['sentido'])} · {quando}</div>
+            {chips_html}
+            {mot_html}
           </div>
         </div>""")
     if not cartoes:
@@ -466,7 +641,8 @@ def gerar_html(previsao, avaliacoes, navios, apl, regras) -> str:
     # --- regras em vigor ----------------------------------------------------
     linhas_regras = "".join(
         f"<tr><td>{e(r['descricao'])}</td>"
-        f"<td>≥ {r['ambar']:g}</td><td>≥ {r['vermelho']:g}</td>"
+        f"<td>{'≤' if r.get('sentido') == 'abaixo' else '≥'}</td>"
+        f"<td>{r['ambar']:g}</td><td>{r['vermelho']:g}</td>"
         f"<td class='fonte-{'ph' if 'PLACEHOLDER' in r['fonte'] else 'ok'}'>"
         f"{e(r['fonte'])}</td></tr>"
         for r in regras.get("regra", []))
@@ -483,72 +659,110 @@ def gerar_html(previsao, avaliacoes, navios, apl, regras) -> str:
     linhas_porto = []
     for n in em_porto:
         etd = n["etd"].strftime("%d/%m %H:%M") if n["etd"] else "—"
-        meta = " · ".join(x for x in (n["tipo"], n["zona"]) if x)
+        chips = [f"<span class='chip'>{e(x)}</span>"
+                for x in (n["tipo"], n["zona"]) if x]
+        chips_html = f"<div class='chips'>{''.join(chips)}</div>" if chips else ""
         linhas_porto.append(
             f"<div class='navio'><span class='farol' "
-            f"style='background:#5C6E7C'></span><div>"
-            f"<div class='nnome'>{e(n['nome'])}</div>"
-            f"<div class='nmeta'>{e(meta)}</div>"
+            f"style='background:#5C6E7C' aria-hidden='true'></span>"
+            f"<div class='navio-corpo'>"
+            f"<div class='nnome-linha'><span class='nnome'>{e(n['nome'])}"
+            f"</span></div>{chips_html}"
             f"<div class='nmeta'>ETD prevista: {etd}</div></div></div>")
     seccao_porto = ("".join(linhas_porto) or
                     "<p class='vazio'>Sem navios em porto nesta recolha.</p>")
+
+    resumo_html = (f"<p id='resumo-agora' class='resumo-agora'>{e(resumo_agora)}</p>"
+                  if resumo_agora else "")
 
     return f"""<!DOCTYPE html>
 <html lang="pt"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="refresh" content="900">
+<meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#DCEBF1" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0D1720" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="{FAVICON_HREF}">
 <title>Janelas da Barra · Lisboa</title>
 <style>
- :root {{ --tinta:#1B2A38; --agua:#DCEBF1; --papel:#F7F5EF; --mag:#B0257C; }}
+ :root {{ --tinta:#1B2A38; --agua:#DCEBF1; --papel:#F7F5EF; --mag:#B0257C;
+         --verde:#1E7A5A; --ambar:#E2B93B; --vermelho:#C0392B; }}
  * {{ box-sizing:border-box; }}
+ html {{ scroll-behavior:smooth; }}
  body {{ margin:0; background:var(--agua); color:var(--tinta);
-        font-family:system-ui,-apple-system,sans-serif; }}
+        font-family:system-ui,-apple-system,sans-serif; line-height:1.4; }}
  header {{ padding:16px 16px 8px; }}
  h1 {{ margin:0; font-size:24px; }}
  .sub {{ font-size:12px; color:#5C6E7C; margin-top:4px; }}
  .aviso {{ background:var(--tinta); color:var(--papel); font-size:12px;
           padding:8px 16px; }}
+ main {{ display:block; max-width:720px; margin:0 auto; }}
  section {{ background:var(--papel); border:2px solid var(--tinta);
            border-radius:12px; margin:12px; padding:12px; }}
  h2 {{ font-size:16px; margin:0 0 8px; }}
+ .resumo-agora {{ margin:0 0 10px; font-size:14px; font-weight:600;
+                 padding:8px 10px; background:var(--agua);
+                 border-radius:8px; border:1px solid var(--tinta); }}
  .scroll {{ overflow-x:auto; padding-bottom:6px; }}
  .timeline {{ display:flex; gap:2px; }}
+ button.cel {{ border:none; font:inherit; color:#fff; cursor:pointer;
+              padding:0; -webkit-tap-highlight-color:transparent; }}
+ .cel:focus-visible {{ outline:3px solid var(--tinta); outline-offset:2px;
+                       position:relative; z-index:1; }}
  .cel.agora {{ outline:3px solid var(--mag); outline-offset:-1px; }}
  .cel.sel {{ box-shadow:inset 0 0 0 2px var(--tinta); }}
- .cel-a .hh, .cel-a .dia {{ color:#1B2A38; }}
+ .cel-a, .cel-a .hh, .cel-a .dia, .cel-a .glifo, .cel-a .marca-estofa {{
+   color:#1B2A38; }}
+ .cel-noite {{ filter:saturate(.55) brightness(.88); }}
+ .cel-noite::before {{ content:''; position:absolute; top:0; left:0;
+                       right:0; height:3px; background:rgba(0,0,0,.35); }}
  #detalhe {{ margin-top:8px; padding:8px 10px; border:1.5px dashed var(--tinta);
-            border-radius:8px; font-size:13px; line-height:1.45; }}
+            border-radius:8px; font-size:13px; line-height:1.5; }}
+ #detalhe .det-cab {{ margin-bottom:4px; }}
+ #detalhe .det-mot {{ margin-bottom:4px; }}
+ #detalhe .det-linha {{ font-size:12px; }}
  .mare {{ display:block; }}
  .mare-linha {{ fill:none; stroke:#3B7EA1; stroke-width:2; }}
  .mare-rot {{ font-size:9px; fill:currentColor; }}
  .mare-msl {{ stroke:#5C6E7C; stroke-dasharray:3 3; }}
- .cel {{ min-width:22px; height:46px; border-radius:4px; position:relative;
-        color:#fff; }}
+ .cel {{ min-width:24px; height:54px; border-radius:4px; position:relative; }}
  .cel .hh {{ position:absolute; bottom:2px; left:0; right:0;
             text-align:center; font-size:9px; opacity:.9; }}
  .cel .dia {{ position:absolute; top:2px; left:0; right:0; text-align:center;
              font-size:9px; font-weight:700; }}
+ .cel .glifo {{ position:absolute; top:2px; right:3px; font-size:9px; }}
+ .cel .marca-estofa {{ position:absolute; bottom:15px; left:0; right:0;
+                       text-align:center; font-size:7px; font-weight:700;
+                       letter-spacing:.02em; }}
  .legenda {{ font-size:11px; color:#5C6E7C; margin-top:6px; }}
+ .legenda-item {{ display:inline-block; margin-right:10px; }}
  .dot {{ display:inline-block; width:9px; height:9px; border-radius:50%;
-        margin:0 3px 0 8px; }}
+        margin:0 3px 0 0; vertical-align:-1px; }}
  .navio {{ display:flex; gap:10px; padding:10px 0;
           border-bottom:1px solid #D7DFE4; }}
  .navio:last-child {{ border-bottom:none; }}
  .farol {{ flex:0 0 12px; height:12px; border-radius:50%; margin-top:4px; }}
+ .navio-corpo {{ min-width:0; flex:1; }}
+ .nnome-linha {{ display:flex; flex-wrap:wrap; align-items:baseline; gap:6px; }}
  .nnome {{ font-weight:600; font-size:15px; }}
+ .nestado {{ font-size:11px; font-weight:700; color:#5C6E7C; }}
  .nmeta {{ font-size:12px; color:#5C6E7C; }}
- .nmot {{ font-size:12px; margin-top:2px; }}
- table {{ border-collapse:collapse; width:100%; font-size:12px; }}
+ .chips {{ margin-top:4px; display:flex; flex-wrap:wrap; gap:4px; }}
+ .chip {{ font-size:11px; background:var(--agua); border:1px solid #B9C6CF;
+         border-radius:999px; padding:1px 8px; white-space:nowrap; }}
+ .nmot {{ font-size:12px; margin:4px 0 0; padding-left:16px; }}
+ .nmot li {{ margin-bottom:2px; }}
+ table {{ border-collapse:collapse; width:100%; font-size:12px;
+         min-width:480px; }}
  th,td {{ border:1px solid #B9C6CF; padding:5px 6px; text-align:left; }}
  th {{ background:var(--tinta); color:var(--papel); }}
  .fonte-ph {{ color:var(--mag); font-weight:600; }}
  .fonte-ok {{ color:#1E7A5A; }}
  ul {{ margin:6px 0 0; padding-left:18px; font-size:12px; }}
  .vazio {{ color:#5C6E7C; font-style:italic; font-size:13px; }}
- footer {{ font-size:11px; color:#5C6E7C; padding:0 16px 20px; }}
+ footer {{ font-size:11px; color:#5C6E7C; padding:0 16px 20px;
+          max-width:720px; margin:0 auto; }}
  @media (prefers-color-scheme: dark) {{
   :root {{ --tinta:#E6EDF3; --agua:#0D1720; --papel:#15222D; --mag:#E464AE; }}
   section {{ border-color:#33475A; }}
@@ -558,6 +772,12 @@ def gerar_html(previsao, avaliacoes, navios, apl, regras) -> str:
   .aviso {{ background:#15222D; color:#E6EDF3;
            border-bottom:1px solid #33475A; }}
   .fonte-ok {{ color:#4CC38A; }}
+  .chip {{ border-color:#33475A; }}
+ }}
+ @media (prefers-reduced-motion: reduce) {{
+  html {{ scroll-behavior:auto; }}
+  * {{ animation-duration:0.01ms !important; animation-iteration-count:1 !important;
+      transition-duration:0.01ms !important; scroll-behavior:auto !important; }}
  }}
 </style></head>
 <body>
@@ -566,39 +786,51 @@ def gerar_html(previsao, avaliacoes, navios, apl, regras) -> str:
  <div class="sub">Atualizado: {agora} · APL + Open-Meteo Marine ·
  limiares em regras.toml</div>
 </header>
-<div class="aviso">⚠ Ferramenta informativa. Não substitui JUP, VTS-Lisboa,
-Capitania nem o juízo profissional do piloto. Limiares a magenta são
-PLACEHOLDERS por validar.</div>
+<div class="aviso" role="note">⚠ Ferramenta informativa. Não substitui JUP,
+VTS-Lisboa, Capitania nem o juízo profissional do piloto. Limiares a magenta
+são PLACEHOLDERS por validar.</div>
 
-<section>
- <h2>Próximas {len(celulas)} horas</h2>
+<main aria-label="Painel de janelas da barra">
+<section aria-labelledby="tl-titulo">
+ <h2 id="tl-titulo">Próximas {len(celulas)} horas</h2>
+ {resumo_html}
  <div class="scroll">
   <div class="timeline">{''.join(celulas)}</div>
   {svg_mare}
  </div>
- <div id="detalhe" hidden></div>
- <div class="legenda">Toca/paira numa hora para ver os motivos.{legenda_mare}
-  <span class="dot" style="background:{COR[0]}"></span>verde
-  <span class="dot" style="background:{COR[1]}"></span>âmbar
-  <span class="dot" style="background:{COR[2]}"></span>vermelho</div>
+ <div id="detalhe" aria-live="polite" hidden></div>
+ <div class="legenda">
+  <div>Toca ou navega por teclado numa hora para ver os detalhes.{legenda_mare}</div>
+  <div>
+   <span class="legenda-item"><span class="dot" style="background:{COR[0]}"></span>GO</span>
+   <span class="legenda-item"><span class="dot" style="background:{COR[1]}"></span>GO condicional (~)</span>
+   <span class="legenda-item"><span class="dot" style="background:{COR[2]}"></span>NO-GO (▲)</span>
+   <span class="legenda-item">faixa escura no topo = noite</span>
+   <span class="legenda-item">PM/BM = estofa (preia-mar/baixa-mar)</span>
+  </div>
+ </div>
 </section>
 
-<section>
- <h2>Navios (ETA/ETD da APL) na janela prevista</h2>
+<section aria-labelledby="nav-titulo">
+ <h2 id="nav-titulo">Navios (ETA/ETD da APL) na janela prevista</h2>
  {''.join(cartoes)}
 </section>
 
-<section>
- <h2>Em porto agora ({len(em_porto)})</h2>
+<section aria-labelledby="porto-titulo">
+ <h2 id="porto-titulo">Em porto agora ({len(em_porto)})</h2>
  {seccao_porto}
 </section>
 
-<section>
- <h2>Regras em vigor</h2>
- <table><thead><tr><th>Regra</th><th>Âmbar</th><th>Vermelho</th>
- <th>Fonte</th></tr></thead><tbody>{linhas_regras}</tbody></table>
+<section aria-labelledby="regras-titulo">
+ <h2 id="regras-titulo">Regras em vigor</h2>
+ <div class="scroll">
+ <table><thead><tr><th>Regra</th><th>Sentido</th><th>Âmbar</th>
+ <th>Vermelho</th><th>Fonte</th></tr></thead>
+ <tbody>{linhas_regras}</tbody></table>
+ </div>
  <ul>{notas}</ul>
 </section>
+</main>
 
 <footer>Nível do mar: modelo Open-Meteo (não são as tabelas oficiais do
 Instituto Hidrográfico). Dados APL © Administração do Porto de Lisboa.

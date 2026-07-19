@@ -36,14 +36,18 @@ janelas-barra/
 ├── regras.toml               # ÚNICO sítio onde vivem limiares numéricos
 ├── index.html                # gerado; não editar à mão
 ├── requirements.txt
+├── docs/                     # documentos de apoio (análise, specs/plans de features)
+│   └── analise_manobrabilidade_lisboa_v2.md
 ├── .github/workflows/atualizar.yml
 ├── README.md                 # setup para humanos
 └── CLAUDE.md                 # este ficheiro
 ```
 
-Fluxo em `janelas_barra.py` (por ordem no ficheiro):
+Fluxo em `janelas_barra.py` (por ordem no ficheiro, funções auxiliares
+privadas `_get_json`/`_momento`/`cardeal_seta` omitidas):
 `carregar_regras` → `recolher_meteomar` → `avaliar_hora`/`avaliar_ukc`
-→ `recolher_apl` → `extrair_navios` → `gerar_html` → `main`.
+→ `recolher_apl` → `extrair_navios` → `filtrar_em_porto` →
+`gerar_svg_mare` → `gerar_html` → `main`.
 
 ## A regra de ouro deste projeto
 
@@ -68,7 +72,8 @@ barra em texto ou código — se falta um dado, marcar `PLACEHOLDER`.
   `POST https://www.portodelisboa.pt/api/jsonws/invoke` com corpo
   `{"/apl.processosweb/get-chegadas": {"dataIni": "YYYY-MM-DD", "dataFim": ...}}`
   (idem `get-partidas`; existe ainda
-  `/apl.processoswebemporto/get-navios-em-porto`, sem parâmetros, não usado).
+  `/apl.processoswebemporto/get-navios-em-porto`, sem parâmetros — usado
+  para a secção "Em porto" do painel).
   Responde a `urllib` simples — **não é preciso browser headless**; o
   Playwright foi removido em 2026-07-18 depois de descobrir a API (os
   serviços estão visíveis no JS público das páginas de chegadas/partidas).
@@ -122,15 +127,33 @@ parser ou no HTML; o CI corre-o antes de publicar.
       chegadas/partidas exigem pesquisa por datas; substituído o scraping
       DOM pela API JSON pública (ver "Fontes de dados"), validada em local
       e em produção.
+- [x] Funcionalidades entretanto acrescentadas ao painel: curva de maré em
+      SVG alinhada à timeline com PM/BM anotadas, secção "Em porto" via
+      serviço `get-navios-em-porto` da APL, timeline interativa, dark mode
+      automático com `theme-color`, e o CI a correr `teste_offline.py`
+      antes de publicar em GitHub Pages.
+- [x] Fase 1 (2026-07-19): dados horários alargados a visibilidade, `is_day`
+      e corrente (Open-Meteo); regras horárias para visibilidade/corrente/
+      embarque do piloto; regra por tipo de navio (RO-RO vs vento); margem
+      de ondulação no UKC; deteção de janelas de estofa (PM/BM); rótulos
+      GO/GO condicional/NO-GO nos textos de detalhe. Todos os novos
+      limiares são PLACEHOLDER (por validar com piloto).
 - [ ] UKC mistura referenciais ZH/MSL (ver acima) e ignora squat e resposta
-      vertical à ondulação — é UKC estático simplificado.
-- [ ] Todos os limiares de swell/vento/período são PLACEHOLDER.
+      vertical à ondulação — é UKC estático simplificado (agora com margem
+      de ondulação aproximada, também PLACEHOLDER).
+- [ ] Todos os limiares de swell/vento/período/visibilidade/corrente são
+      PLACEHOLDER.
 - [ ] `canal.profundidade_zh = 15.0` é ilustrativo — confirmar com carta IH.
+- [ ] Estofa derivada de PM/BM do nível modelado (Open-Meteo), não da
+      estofa real da corrente — desfasamento local não calibrado.
 
 ## Roadmap (por ordem de valor)
 
 1. Substituir nível do mar Open-Meteo por previsão de marés do IH
-   (ou calibrar o offset MSL↔ZH para Cascais/Lisboa).
+   (ou calibrar o offset MSL↔ZH para Cascais/Lisboa). Nota: já existe uma
+   curva de maré em SVG no painel (`gerar_svg_mare`, alinhada à timeline
+   com PM/BM anotadas), mas continua calculada a partir do nível de mar
+   modelado pelo Open-Meteo — este item mantém-se por resolver.
 2. Sessão com o piloto: validar/preencher `regras.toml` e a coordenada
    `[local]`; registar cada decisão no campo `fonte`.
 3. Reintegrar snapshot AIS (aisstream.io, chave em secret `AISSTREAM_KEY`)

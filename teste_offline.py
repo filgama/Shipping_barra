@@ -9,12 +9,23 @@ import janelas_barra as jb
 
 REGRAS = {
     "canal": {"profundidade_zh": 15.0},
-    "ukc": {"folga_minima_pct": 0.15, "folga_ambar_pct": 0.30},
+    "ukc": {"folga_minima_pct": 0.15, "folga_ambar_pct": 0.30,
+            "margem_ondulacao_frac": 0.3},
+    "estofa": {"janela_min": 45},
     "regra": [
         {"parametro": "swell_altura", "descricao": "Swell", "ambar": 2.0,
          "vermelho": 3.0, "fonte": "PLACEHOLDER"},
         {"parametro": "vento_kn", "descricao": "Vento do quadrante N",
          "ambar": 16.0, "vermelho": 25.0, "dir_min": 300.0, "dir_max": 60.0,
+         "fonte": "PLACEHOLDER"},
+        {"parametro": "visibilidade_m", "descricao": "Visibilidade",
+         "sentido": "abaixo", "ambar": 3704.0, "vermelho": 1852.0,
+         "fonte": "PLACEHOLDER"},
+    ],
+    "regra_navio": [
+        {"id": "roro_vento", "tipos": ["ro-ro", "roro", "ro/ro"],
+         "parametro": "vento_kn", "vermelho": 20.0,
+         "descricao": "RO-RO interdito com vento forte",
          "fonte": "PLACEHOLDER"},
     ],
 }
@@ -56,6 +67,55 @@ def teste_ukc():
     assert jb.avaliar_ukc(12.0, 0.5, REGRAS)[0] == 1   # folga 29 % < 30 %
     assert jb.avaliar_ukc(13.5, 0.5, REGRAS)[0] == 2   # folga 14.8 % < 15 %
     assert jb.avaliar_ukc(None, 0.5, REGRAS) is None
+
+
+def teste_ukc_margem_ondulacao():
+    # calado 12.0: sem ondulação folga 29% -> ambar (estado 1)
+    sem_onda = jb.avaliar_ukc(12.0, 0.5, REGRAS)
+    assert sem_onda[0] == 1
+    # com Hs alta (3.0 m), margem = 0.3*3.0 = 0.9 m subtraída à folga
+    # folga bruta 3.5 m -> folga efetiva 2.6 m / 12.0 = 21.7% -> ainda ambar,
+    # mas o texto deve mostrar a margem e a folga reduzida
+    com_onda = jb.avaliar_ukc(12.0, 0.5, REGRAS, onda_altura=3.0)
+    assert "ondulação" in com_onda[1]
+    assert "2.6 m" in com_onda[1]
+    # Hs suficientemente alta degrada o estado: calado 13.0 sem ondulação é
+    # ambar (folga 19,2%), com Hs=3.0 m passa a vermelho (folga eff. 12,3%)
+    assert jb.avaliar_ukc(13.0, 0.5, REGRAS)[0] == 1
+    pior = jb.avaliar_ukc(13.0, 0.5, REGRAS, onda_altura=3.0)
+    assert pior[0] == 2
+    # sem onda_altura, comportamento inalterado (compatibilidade)
+    assert jb.avaliar_ukc(8.0, 0.5, REGRAS, onda_altura=None)[0] == 0
+
+
+def teste_sentido_abaixo():
+    # regra "Visibilidade": sentido abaixo, ambar 3704, vermelho 1852
+    hora_boa = dict(previsao_fixa()[0], visibilidade_m=8000.0)
+    assert jb.avaliar_hora(hora_boa, REGRAS)[0] == 0
+    hora_ambar = dict(previsao_fixa()[0], visibilidade_m=3000.0)
+    estado, motivos = jb.avaliar_hora(hora_ambar, REGRAS)
+    assert estado == 1 and any("Visibilidade" in m for m in motivos)
+    hora_vermelho = dict(previsao_fixa()[0], visibilidade_m=1000.0)
+    estado, motivos = jb.avaliar_hora(hora_vermelho, REGRAS)
+    assert estado == 2 and any("Visibilidade" in m for m in motivos)
+
+
+def teste_avaliar_navio_tipo():
+    hora = dict(previsao_fixa()[0], vento_kn=22.0, rajada_kn=24.0)
+    roro = {"tipo": "Navio RO-RO"}
+    resultados = jb.avaliar_navio_tipo(roro, hora, REGRAS)
+    assert resultados and resultados[0][0] == 2
+    contentor = {"tipo": "Porta-Contentores"}
+    assert jb.avaliar_navio_tipo(contentor, hora, REGRAS) == []
+
+
+def teste_detetar_estofas():
+    prev = previsao_fixa()  # PM em 02h/10h (+1.0), BM em 06h (-1.0)
+    estofas = jb.detetar_estofas(prev, REGRAS)
+    tipos_horas = [(es["tipo"], es["tempo"][11:13]) for es in estofas]
+    assert ("PM", "02") in tipos_horas
+    assert ("BM", "06") in tipos_horas
+    assert ("PM", "10") in tipos_horas
 
 
 def teste_extrair_navios():
@@ -146,6 +206,8 @@ def teste_dark_mode():
 
 
 TESTES = [teste_avaliar_hora_basico, teste_setor_circular, teste_ukc,
+          teste_ukc_margem_ondulacao, teste_sentido_abaixo,
+          teste_avaliar_navio_tipo, teste_detetar_estofas,
           teste_extrair_navios, teste_cardeal_seta,
           teste_html_timeline_interativa, teste_svg_mare,
           teste_filtrar_em_porto, teste_html_em_porto, teste_dark_mode]
