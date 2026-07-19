@@ -95,7 +95,11 @@ barra em texto ou código — se falta um dado, marcar `PLACEHOLDER`.
 
 - Português europeu em código, comentários, UI e commits. Terminologia
   náutica correta (calado, UKC, enfiamento, preia-mar/baixa-mar).
-- Um só ficheiro Python enquanto for razoável (< ~1000 linhas). Sem
+- Um só ficheiro Python enquanto for razoável — o limite de ~1000 linhas é
+  indicativo, não rígido; ultrapassar ligeiramente é tolerável se o
+  ficheiro continuar coerente (em 2026-07-19, ~1120 linhas, após o pacote
+  de UX da timeline/navios/maré). Se crescer muito mais, considerar separar
+  a geração de HTML (`gerar_html` e afins) num módulo próprio. Sem
   frameworks nem dependências externas; stdlib apenas (3.11+: `tomllib`).
 - HTML gerado por f-string no próprio script; sem templates externos.
   Design tokens: tinta `#1B2A38`, água `#DCEBF1`, papel `#F7F5EF`,

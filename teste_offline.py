@@ -203,6 +203,66 @@ def teste_html_em_porto():
     assert "marinetraffic.com" in out          # nome do navio é link
 
 
+def teste_resumo_janelas():
+    # 12h sintéticas independentes de previsao_fixa: 0-2 ambar, 3-8 verde
+    # (6h contínuas, >= JANELA_MIN_HORAS), 9 vermelho, 10-11 verde (só 2h).
+    prev = [{"tempo": f"2026-07-18T{i:02d}:00"} for i in range(12)]
+    estados = [1, 1, 1, 0, 0, 0, 0, 0, 0, 2, 0, 0]
+    avals = [(s, []) for s in estados]
+    frases = jb.resumo_janelas(prev, avals, agora=datetime(2026, 7, 18, 0, 0))
+    assert any("03h" in f and "6 h" in f and "GO contínua" in f for f in frases), frases
+    assert any("NO-GO" in f and "09h" in f for f in frases), frases
+    # a partir da hora 9 (vermelho), a janela de 2h remanescente é curta
+    # demais para ser anunciada
+    frases2 = jb.resumo_janelas(prev, avals, agora=datetime(2026, 7, 18, 9, 0))
+    assert not any("GO contínua" in f for f in frases2), frases2
+
+
+def teste_avaliar_navio():
+    prev = previsao_fixa()
+    avals = [jb.avaliar_hora(h, REGRAS) for h in prev]
+    estofas = jb.detetar_estofas(prev, REGRAS)
+    # hora 6: swell 2.5 (âmbar) + nível -1.0 -> água 14.0 m; calado 14.0 m
+    # esgota a folga UKC -> estado agravado para vermelho (NO-GO)
+    navio = {"nome": "TESTE", "sentido": "entrada",
+             "momento": datetime(2026, 7, 18, 6, 0), "calado": 14.0,
+             "tipo": "Carga"}
+    estado, motivos, nota, idx = jb.avaliar_navio(navio, prev, avals, REGRAS, estofas)
+    assert estado == 2 and idx == 6, (estado, idx)
+    assert any("UKC insuficiente" in m for m in motivos), motivos
+    # sem data reconhecida
+    sem_data = {"nome": "X", "sentido": "entrada", "momento": None, "calado": None}
+    assert jb.avaliar_navio(sem_data, prev, avals, REGRAS, estofas)[0] is None
+    # fora do horizonte
+    fora = {"nome": "Y", "sentido": "entrada",
+            "momento": datetime(2099, 1, 1, 0, 0), "calado": None}
+    assert jb.avaliar_navio(fora, prev, avals, REGRAS, estofas)[0] is None
+
+
+def teste_html_marcadores_navios():
+    prev = previsao_fixa()
+    avals = [jb.avaliar_hora(h, REGRAS) for h in prev]
+    navios = [{"nome": "ALFA", "sentido": "entrada",
+              "momento": datetime(2026, 7, 18, 6, 0), "calado": 8.0,
+              "tipo": "Carga", "zona": "", "imo": None}]
+    out = jb.gerar_html(prev, avals, navios, {}, REGRAS)
+    assert 'id="navio-1"' in out
+    assert "nm-marca" in out and "data-alvo='navio-1'" in out
+    assert 'aria-label="ALFA' in out
+    assert "chip-filtro" in out and "aria-pressed" in out
+
+
+def teste_html_aviso_apl():
+    prev = previsao_fixa()
+    avals = [jb.avaliar_hora(h, REGRAS) for h in prev]
+    apl = {"_erros": ["chegadas: timeout"]}
+    out = jb.gerar_html(prev, avals, [], apl, REGRAS)
+    assert "Dados APL indisponíveis" in out
+    assert "chegadas: timeout" in out
+    out_ok = jb.gerar_html(prev, avals, [], {}, REGRAS)
+    assert "Dados APL indisponíveis" not in out_ok
+
+
 def teste_dark_mode():
     prev = previsao_fixa()
     avals = [jb.avaliar_hora(h, REGRAS) for h in prev]
@@ -216,7 +276,10 @@ TESTES = [teste_avaliar_hora_basico, teste_setor_circular, teste_ukc,
           teste_avaliar_navio_tipo, teste_detetar_estofas,
           teste_extrair_navios, teste_cardeal_seta,
           teste_html_timeline_interativa, teste_svg_mare,
-          teste_filtrar_em_porto, teste_html_em_porto, teste_dark_mode]
+          teste_filtrar_em_porto, teste_html_em_porto,
+          teste_resumo_janelas, teste_avaliar_navio,
+          teste_html_marcadores_navios, teste_html_aviso_apl,
+          teste_dark_mode]
 
 
 def main():
