@@ -22,16 +22,29 @@ USO:
     python janelas_barra.py                # recolha completa -> index.html
     python janelas_barra.py --sem-apl      # só meteo-mar (teste rápido)
     python janelas_barra.py --horas 96     # horizonte da previsão (defeito 72)
+    python janelas_barra.py --sem-ais      # saltar snapshot AIS (aisstream.io)
+
+AIS em direto (secção "No estuário agora"): requer a variável de ambiente
+AISSTREAM_KEY (chave grátis em aisstream.io); sem ela a secção degrada com
+uma nota discreta, sem crash.
 
 Ver CLAUDE.md para arquitetura e convenções. AVISO: ferramenta informativa;
 não substitui JUP, VTS, Capitania nem o juízo do piloto.
 """
 
 import argparse
+import base64
+import hashlib
 import html
 import json
+import math
+import os
 import re
+import socket
+import ssl
+import struct
 import sys
+import time
 import tomllib
 import urllib.parse
 import urllib.request
@@ -359,6 +372,247 @@ def cardeal_seta(graus) -> tuple[str, str]:
 
 
 # ---------------------------------------------------------------------------
+# AIS em direto (aisstream.io) — snapshot por WebSocket, stdlib apenas
+# ---------------------------------------------------------------------------
+# Sem chave AISSTREAM_KEY (env/secret), esta secção inteira é ignorada e o
+# painel degrada com uma nota discreta — nunca crasha. Cliente WSS mínimo:
+# handshake HTTP Upgrade + framing RFC 6455 implementados à mão (só stdlib:
+# socket/ssl/base64/hashlib/struct), porque aisstream.io só fala WebSocket.
+
+AIS_URL = "wss://stream.aisstream.io/v0/stream"
+# Caixa geográfica da aproximação à Barra Sul + estuário do Tejo — filtro
+# TÉCNICO de subscrição (não é um limiar de decisão náutica), no mesmo
+# espírito de JANELA_PORTO_DIAS acima.
+AIS_BBOX = [[[38.35, -9.75], [38.95, -8.85]]]
+_WS_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+
+
+def _ws_parse_frame(buf: bytes):
+    """Extrai um frame WebSocket (RFC 6455) do início de `buf`. Devolve
+    (opcode, payload, resto) com o payload já desmascarado, ou None se o
+    buffer ainda não tiver um frame completo (o chamador deve ler mais bytes
+    e tentar de novo). Suporta comprimentos de 7/16/64 bits; o bit FIN não
+    entra no tuplo — quem trata fragmentação lê-o do byte 0 do buffer antes
+    de invocar esta função."""
+    if len(buf) < 2:
+        return None
+    b0, b1 = buf[0], buf[1]
+    opcode = b0 & 0x0F
+    mascarado = bool(b1 & 0x80)
+    comp = b1 & 0x7F
+    i = 2
+    if comp == 126:
+        if len(buf) < i + 2:
+            return None
+        comp = struct.unpack(">H", buf[i:i + 2])[0]
+        i += 2
+    elif comp == 127:
+        if len(buf) < i + 8:
+            return None
+        comp = struct.unpack(">Q", buf[i:i + 8])[0]
+        i += 8
+    chave_mask = b""
+    if mascarado:
+        if len(buf) < i + 4:
+            return None
+        chave_mask = buf[i:i + 4]
+        i += 4
+    if len(buf) < i + comp:
+        return None
+    payload = buf[i:i + comp]
+    if mascarado:
+        payload = bytes(c ^ chave_mask[k % 4] for k, c in enumerate(payload))
+    return opcode, payload, buf[i + comp:]
+
+
+def _ws_frame(opcode: int, payload: bytes = b"") -> bytes:
+    """Frame client→server, sempre mascarado (obrigatório por RFC 6455)."""
+    b0 = 0x80 | opcode  # FIN=1 (não fragmentamos o que enviamos)
+    comp = len(payload)
+    if comp <= 125:
+        cab = bytes([b0, 0x80 | comp])
+    elif comp <= 0xFFFF:
+        cab = bytes([b0, 0x80 | 126]) + struct.pack(">H", comp)
+    else:
+        cab = bytes([b0, 0x80 | 127]) + struct.pack(">Q", comp)
+    chave_mask = os.urandom(4)
+    mascarado = bytes(c ^ chave_mask[k % 4] for k, c in enumerate(payload))
+    return cab + chave_mask + mascarado
+
+
+def _ws_handshake(sock, host: str, caminho: str) -> bytes:
+    """Handshake HTTP Upgrade → WebSocket. Devolve os bytes lidos a mais
+    (já a seguir ao \\r\\n\\r\\n) para não se perderem no framing."""
+    chave = base64.b64encode(os.urandom(16)).decode()
+    pedido = (f"GET {caminho} HTTP/1.1\r\nHost: {host}\r\n"
+             "Upgrade: websocket\r\nConnection: Upgrade\r\n"
+             f"Sec-WebSocket-Key: {chave}\r\nSec-WebSocket-Version: 13\r\n\r\n")
+    sock.sendall(pedido.encode())
+    resposta = b""
+    while b"\r\n\r\n" not in resposta:
+        bloco = sock.recv(4096)
+        if not bloco:
+            raise ConnectionError("ligação fechada durante o handshake WS")
+        resposta += bloco
+    cabecalho, _, resto = resposta.partition(b"\r\n\r\n")
+    linha_estado = cabecalho.split(b"\r\n", 1)[0]
+    if b"101" not in linha_estado:
+        raise ConnectionError(f"handshake WS recusado: {linha_estado!r}")
+    esperado = base64.b64encode(
+        hashlib.sha1((chave + _WS_GUID).encode()).digest())
+    if esperado not in cabecalho:
+        raise ConnectionError("Sec-WebSocket-Accept não corresponde")
+    return resto
+
+
+def _ws_recv_json(url: str, subscricao: dict, segundos: float) -> list[bytes]:
+    """Liga por WSS, envia `subscricao` como frame de texto e escuta durante
+    `segundos`, devolvendo os payloads (bytes) de cada mensagem de texto
+    recebida (frames de continuação são concatenados). Responde a pings com
+    pong; ignora o resto; termina em close ou fim do tempo."""
+    partes = urllib.parse.urlsplit(url)
+    host, porta = partes.hostname, partes.port or 443
+    caminho = partes.path or "/"
+    mensagens: list[bytes] = []
+    ctx = ssl.create_default_context()
+    with socket.create_connection((host, porta), timeout=10) as bruto:
+        with ctx.wrap_socket(bruto, server_hostname=host) as sock:
+            buf = _ws_handshake(sock, host, caminho)
+            sock.sendall(_ws_frame(0x1, json.dumps(subscricao).encode()))
+            sock.settimeout(2.0)
+            frag = bytearray()
+            fim = time.monotonic() + segundos
+            while time.monotonic() < fim:
+                resultado = _ws_parse_frame(buf)
+                while resultado is not None:
+                    fin = bool(buf[0] & 0x80)
+                    opcode, payload, buf = resultado
+                    if opcode in (0x0, 0x1):
+                        frag += payload
+                        if fin:
+                            mensagens.append(bytes(frag))
+                            frag = bytearray()
+                    elif opcode == 0x9:  # ping -> pong
+                        try:
+                            sock.sendall(_ws_frame(0xA, payload))
+                        except OSError:
+                            pass
+                    elif opcode == 0x8:  # close
+                        return mensagens
+                    # 0x2 binário, 0xA pong: ignorados
+                    resultado = _ws_parse_frame(buf)
+                try:
+                    bloco = sock.recv(65536)
+                except socket.timeout:
+                    continue
+                except OSError:
+                    break
+                if not bloco:
+                    break
+                buf += bloco
+    return mensagens
+
+
+def _haversine_mn(lat1, lon1, lat2, lon2) -> float:
+    """Distância aproximada entre duas coordenadas, em milhas náuticas
+    (1 MN = 1852 m). Fórmula geométrica standard, não é limiar de decisão."""
+    r = 6371000.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp, dl = math.radians(lat2 - lat1), math.radians(lon2 - lon1)
+    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 2 * r * math.asin(math.sqrt(a)) / 1852.0
+
+
+def _agregar_ais(mensagens: list[dict], local: dict) -> list[dict]:
+    """Agrega mensagens AIS (PositionReport + ShipStaticData, formato
+    aisstream.io) por MMSI, fundindo posição e ficha estática. Devolve uma
+    lista de navios ordenada por distância a `local` (latitude/longitude).
+    Função pura — testável offline com fixtures JSON sintéticas."""
+    navios: dict = {}
+    for msg in mensagens:
+        meta = msg.get("MetaData") or {}
+        mmsi = meta.get("MMSI")
+        if mmsi is None:
+            continue
+        nv = navios.setdefault(mmsi, {"mmsi": mmsi})
+        if (meta.get("ShipName") or "").strip():
+            nv["nome"] = meta["ShipName"].strip()
+        if meta.get("latitude") is not None:
+            nv["lat"] = meta["latitude"]
+        if meta.get("longitude") is not None:
+            nv["lon"] = meta["longitude"]
+        tipo_msg = msg.get("MessageType")
+        corpo = (msg.get("Message") or {}).get(tipo_msg) or {}
+        if tipo_msg == "PositionReport":
+            for campo, chave in (("Sog", "sog"), ("Cog", "cog"),
+                                 ("Latitude", "lat"), ("Longitude", "lon")):
+                if corpo.get(campo) is not None:
+                    nv[chave] = corpo[campo]
+        elif tipo_msg == "ShipStaticData":
+            if (corpo.get("Name") or "").strip():
+                nv["nome"] = corpo["Name"].strip()
+            if corpo.get("ImoNumber"):
+                nv["imo"] = str(corpo["ImoNumber"])
+            if (corpo.get("Destination") or "").strip():
+                nv["destino"] = corpo["Destination"].strip()
+            if corpo.get("MaximumStaticDraught"):
+                nv["calado"] = corpo["MaximumStaticDraught"]
+            dim = corpo.get("Dimension") or {}
+            a, b, c, d = (dim.get("A"), dim.get("B"),
+                         dim.get("C"), dim.get("D"))
+            if a is not None and b is not None:
+                nv["loa"] = a + b
+            if c is not None and d is not None:
+                nv["boca"] = c + d
+    lat0, lon0 = local["latitude"], local["longitude"]
+    out = []
+    for nv in navios.values():
+        nv.setdefault("nome", f"MMSI {nv['mmsi']}")
+        if nv.get("lat") is not None and nv.get("lon") is not None:
+            nv["distancia_mn"] = _haversine_mn(lat0, lon0, nv["lat"], nv["lon"])
+        else:
+            nv["distancia_mn"] = None
+        out.append(nv)
+    out.sort(key=lambda n: (n["distancia_mn"] is None, n["distancia_mn"] or 0))
+    return out
+
+
+def recolher_ais(chave: str, regras: dict, segundos: int = 60) -> dict:
+    """Snapshot AIS de ~`segundos` via aisstream.io. Nunca lança exceção —
+    qualquer falha (rede, handshake, chave inválida) vira `erro` no dict
+    devolvido, para o painel degradar com um aviso em vez de crashar."""
+    quando = datetime.now()
+    try:
+        subscricao = {"APIKey": chave, "BoundingBoxes": AIS_BBOX,
+                      "FilterMessageTypes": ["PositionReport", "ShipStaticData"]}
+        brutos = _ws_recv_json(AIS_URL, subscricao, float(segundos))
+        mensagens = []
+        for b in brutos:
+            try:
+                mensagens.append(json.loads(b.decode("utf-8")))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                continue
+        navios = _agregar_ais(mensagens, regras["local"])
+        return {"navios": navios, "erro": None, "quando": quando,
+               "segundos": segundos}
+    except Exception as exc:
+        return {"navios": [], "erro": str(exc), "quando": quando,
+               "segundos": segundos}
+
+
+def cardeal_seta_rumo(graus) -> tuple[str, str]:
+    """Como cardeal_seta, mas para rumos (COG — course over ground) que já
+    apontam para onde o navio SEGUE, ao contrário de swell/vento/corrente
+    (proveniência): sem a inversão de 180°."""
+    if graus is None:
+        return "", ""
+    g = float(graus) % 360
+    nome = SETORES[int((g + 11.25) // 22.5) % 16]
+    seta = "↑↗→↘↓↙←↖"[int(((g + 22.5) % 360) // 45)]
+    return nome, seta
+
+
+# ---------------------------------------------------------------------------
 # APL (API JSON) + extração de navios
 # ---------------------------------------------------------------------------
 def recolher_apl(horas: int) -> dict:
@@ -642,9 +896,17 @@ JS_PAINEL = """
 </script>"""
 
 
-def gerar_html(previsao, avaliacoes, navios, apl, regras) -> str:
+def gerar_html(previsao, avaliacoes, navios, apl, regras, ais=None) -> str:
     e = html.escape
     agora = datetime.now(timezone.utc).astimezone().strftime("%d/%m/%Y %H:%M")
+
+    # --- AIS em direto (aisstream.io): índices para fusão com os cartões APL
+    ais_por_nome, ais_por_imo = {}, {}
+    if ais and ais.get("navios"):
+        for nv_ais in ais["navios"]:
+            ais_por_nome[nv_ais["nome"].strip().lower()] = nv_ais
+            if nv_ais.get("imo"):
+                ais_por_imo[nv_ais["imo"]] = nv_ais
 
     # --- estofas (PM/BM), calculadas uma vez e partilhadas com a timeline
     # e os cartões de navios ------------------------------------------------
@@ -760,6 +1022,12 @@ def gerar_html(previsao, avaliacoes, navios, apl, regras) -> str:
         itens_mot = list(nv["motivos_n"])
         if nv["nota_estofa"]:
             itens_mot.append(nv["nota_estofa"])
+        nv_ais_match = (ais_por_imo.get(nv.get("imo")) or
+                        ais_por_nome.get(nv["nome"].strip().lower()))
+        if nv_ais_match:
+            d, sog = nv_ais_match.get("distancia_mn"), nv_ais_match.get("sog")
+            if d is not None and sog is not None:
+                itens_mot.append(f"AIS: a {d:.1f} MN da barra, SOG {sog:.1f} kn")
         mot_html = (("<ul class='nmot'>" +
                     "".join(f"<li>{e(m)}</li>" for m in itens_mot) +
                     "</ul>") if itens_mot else "")
@@ -885,6 +1153,52 @@ def gerar_html(previsao, avaliacoes, navios, apl, regras) -> str:
     seccao_porto = ("".join(linhas_porto) or
                     "<p class='vazio'>Sem navios em porto nesta recolha.</p>")
 
+    # --- no estuário agora (AIS, aisstream.io) — degrada sem chave/erro ----
+    limiar_loa = regras.get("dimensoes", {}).get("loa_atracacao_estofa")
+    if ais is None:
+        seccao_ais = ("<p class='vazio'>AIS inativo (sem chave "
+                     "AISSTREAM_KEY configurada).</p>")
+    elif ais.get("erro"):
+        seccao_ais = (f"<div class='aviso-apl' role='note'>⚠ Recolha AIS "
+                      f"falhou nesta ronda: {e(ais['erro'])}.</div>")
+    else:
+        cartoes_ais = []
+        for nv_ais in ais["navios"]:
+            _, seta = cardeal_seta_rumo(nv_ais.get("cog"))
+            d, sog = nv_ais.get("distancia_mn"), nv_ais.get("sog")
+            dist_txt = f"{d:.1f} MN da barra" if d is not None else "distância desconhecida"
+            sog_txt = f"SOG {sog:.1f} kn {seta}" if sog is not None else ""
+            chips = []
+            if nv_ais.get("destino"):
+                chips.append(f"<span class='chip'>destino {e(nv_ais['destino'])}</span>")
+            if nv_ais.get("loa") and nv_ais.get("boca"):
+                chips.append(f"<span class='chip'>{nv_ais['loa']:.0f}×"
+                             f"{nv_ais['boca']:.0f} m</span>")
+            if nv_ais.get("calado"):
+                chips.append(f"<span class='chip'>calado {nv_ais['calado']:g} m</span>")
+            chips_html_ais = (f"<div class='chips'>{''.join(chips)}</div>"
+                             if chips else "")
+            nota_loa = ""
+            if limiar_loa and nv_ais.get("loa") and nv_ais["loa"] > limiar_loa:
+                nota_loa = (f"<p class='nota-loa'>LOA >{limiar_loa:g} m — "
+                           "regulamento APL exige atracação na estofa "
+                           "(por confirmar).</p>")
+            cartoes_ais.append(
+                f"<div class='navio'><span class='farol' "
+                f"style='background:#3B7EA1' aria-hidden='true'></span>"
+                f"<div class='navio-corpo'><div class='nnome-linha'>"
+                f"<a class='nnome' href=\"{e(link_marinetraffic(nv_ais['nome'], nv_ais.get('imo')))}\" "
+                f"target='_blank' rel='noopener'>{e(nv_ais['nome'])}</a></div>"
+                f"<div class='nmeta'>{e(dist_txt)}"
+                f"{' · ' + e(sog_txt) if sog_txt else ''}</div>"
+                f"{chips_html_ais}{nota_loa}</div></div>")
+        hhmm_ais = ais["quando"].strftime("%H:%M")
+        cab_ais = (f"<p class='sub-ais'>Snapshot AIS das {hhmm_ais}, "
+                  f"~{ais.get('segundos', 60)} s de escuta.</p>")
+        seccao_ais = cab_ais + ("".join(cartoes_ais) or
+                                "<p class='vazio'>Sem navios AIS captados "
+                                "nesta janela de escuta.</p>")
+
     resumo_html = (f"<p id='resumo-agora' class='resumo-agora'>{e(resumo_agora)}</p>"
                   if resumo_agora else "")
 
@@ -1005,6 +1319,8 @@ def gerar_html(previsao, avaliacoes, navios, apl, regras) -> str:
  .fonte-ok {{ color:#1E7A5A; }}
  ul {{ margin:6px 0 0; padding-left:18px; font-size:12px; }}
  .vazio {{ color:#5C6E7C; font-style:italic; font-size:13px; }}
+ .sub-ais {{ font-size:11px; color:#5C6E7C; margin:0 0 6px; }}
+ .nota-loa {{ font-size:11px; color:var(--mag); margin:4px 0 0; }}
  footer {{ font-size:11px; color:#5C6E7C; padding:0 16px 20px;
           max-width:720px; margin:0 auto; }}
  @media (prefers-color-scheme: dark) {{
@@ -1072,6 +1388,11 @@ são PLACEHOLDERS por validar.</div>
  {seccao_porto}
 </section>
 
+<section aria-labelledby="ais-titulo">
+ <h2 id="ais-titulo">No estuário agora (AIS)</h2>
+ {seccao_ais}
+</section>
+
 <section aria-labelledby="regras-titulo">
  <h2 id="regras-titulo">Regras em vigor</h2>
  <div class="scroll">
@@ -1097,6 +1418,8 @@ def main() -> None:
                    help="saltar consulta à API APL (só meteo-mar)")
     p.add_argument("--horas", type=int, default=72,
                    help="horizonte de previsão em horas (defeito 72)")
+    p.add_argument("--sem-ais", action="store_true",
+                   help="saltar a recolha AIS (aisstream.io)")
     args = p.parse_args()
 
     regras = carregar_regras()
@@ -1112,8 +1435,21 @@ def main() -> None:
     navios = extrair_navios(apl)
     print(f"[navios] {len(navios)} extraídos da API APL")
 
-    SAIDA.write_text(gerar_html(previsao, avaliacoes, navios, apl, regras),
-                     encoding="utf-8")
+    ais = None
+    chave_ais = os.environ.get("AISSTREAM_KEY")
+    if chave_ais and not args.sem_ais:
+        print("[AIS] a ligar a aisstream.io (~60 s de escuta) …")
+        ais = recolher_ais(chave_ais, regras)
+        if ais["erro"]:
+            print(f"[AIS] erro: {ais['erro']}")
+        else:
+            print(f"[AIS] {len(ais['navios'])} navios no estuário")
+    elif not chave_ais:
+        print("[AIS] sem AISSTREAM_KEY — secção AIS inativa")
+
+    SAIDA.write_text(
+        gerar_html(previsao, avaliacoes, navios, apl, regras, ais=ais),
+        encoding="utf-8")
     print(f"[OK] Painel: {SAIDA}")
 
 

@@ -24,8 +24,9 @@ GitHub Pages. O utilizador final abre um link no telemóvel.
   no HTML é obrigatório — nunca o remover nem suavizar.
 - Não é um clone do MarineTraffic. O valor está no **cruzamento** de fontes e
   nas **regras codificadas**, não no tracking.
-- Não faz AIS em direto (ficou no projeto irmão `painel_barra.py`; pode ser
-  reintegrado — ver Roadmap).
+- AIS em direto (secção "No estuário agora") é um snapshot informativo de
+  ~60 s via aisstream.io, não tracking contínuo — degrada em silêncio sem a
+  chave `AISSTREAM_KEY` (ver "Fontes de dados" e Roadmap item 3).
 
 ## Estrutura
 
@@ -90,17 +91,27 @@ barra em texto ou código — se falta um dado, marcar `PLACEHOLDER`.
   item nº 1 do Roadmap.
 - **Fuso horário**: pedimos `Europe/Lisbon` à API; as ETAs da APL são hora
   local. Manter tudo em hora local, sem conversões.
+- **aisstream.io** (AIS em direto, secção "No estuário agora"): WebSocket
+  (`wss://stream.aisstream.io/v0/stream`), grátis mediante registo — chave em
+  `AISSTREAM_KEY` (env local / secret GitHub). Sem dependências externas: o
+  cliente WSS (`_ws_handshake`/`_ws_frame`/`_ws_parse_frame`/`_ws_recv_json`)
+  é implementado à mão com `socket`+`ssl`+`base64`+`hashlib`+`struct`. Cada
+  recolha (`recolher_ais`) subscreve uma bounding box do estuário do Tejo +
+  aproximação à Barra Sul e escuta ~60 s, acumulando `PositionReport` e
+  `ShipStaticData` por MMSI (`_agregar_ais`). Nunca lança exceção — falhas
+  (sem chave, rede, handshake) viram `erro` no dict devolvido e uma nota/
+  aviso discreto no painel, nunca crash.
 
 ## Convenções
 
 - Português europeu em código, comentários, UI e commits. Terminologia
   náutica correta (calado, UKC, enfiamento, preia-mar/baixa-mar).
 - Um só ficheiro Python enquanto for razoável — o limite de ~1000 linhas é
-  indicativo, não rígido; ultrapassar ligeiramente é tolerável se o
-  ficheiro continuar coerente (em 2026-07-19, ~1120 linhas, após o pacote
-  de UX da timeline/navios/maré). Se crescer muito mais, considerar separar
-  a geração de HTML (`gerar_html` e afins) num módulo próprio. Sem
-  frameworks nem dependências externas; stdlib apenas (3.11+: `tomllib`).
+  indicativo, não rígido; ultrapassar é tolerável se o ficheiro continuar
+  coerente (em 2026-07-19, ~1460 linhas, após o pacote de UX da timeline/
+  navios/maré e o cliente WSS do AIS — este último é o maior bloco isolado,
+  ~250 linhas, candidato natural a módulo próprio se o ficheiro crescer mais).
+  Sem frameworks nem dependências externas; stdlib apenas (3.11+: `tomllib`).
 - HTML gerado por f-string no próprio script; sem templates externos.
   Design tokens: tinta `#1B2A38`, água `#DCEBF1`, papel `#F7F5EF`,
   magenta `#B0257C`; estados verde `#1E7A5A` / âmbar `#E2B93B` /
@@ -113,6 +124,7 @@ barra em texto ou código — se falta um dado, marcar `PLACEHOLDER`.
 ```bash
 python janelas_barra.py                # recolha completa → index.html
 python janelas_barra.py --sem-apl      # teste rápido só com meteo-mar
+python janelas_barra.py --sem-ais      # saltar snapshot AIS (aisstream.io)
 python janelas_barra.py --horas 96     # horizonte alargado
 python -m py_compile janelas_barra.py  # sanity check
 python teste_offline.py                # teste offline (obrigatório antes de commit)
@@ -120,9 +132,11 @@ python teste_offline.py                # teste offline (obrigatório antes de co
 
 Teste offline (sem rede): `python teste_offline.py` — fixtures sintéticas
 para `avaliar_hora` (incl. sectores que cruzam o Norte), `avaliar_ukc`,
-`extrair_navios`, `filtrar_em_porto`, `gerar_svg_mare` e `gerar_html`.
-Obrigatório antes de qualquer commit que toque no motor de regras, no
-parser ou no HTML; o CI corre-o antes de publicar.
+`extrair_navios`, `filtrar_em_porto`, `gerar_svg_mare`, `gerar_html`, o
+parser de frames WebSocket (`_ws_parse_frame`), a agregação AIS por MMSI
+(`_agregar_ais`) e a distância haversine. Obrigatório antes de qualquer
+commit que toque no motor de regras, no parser ou no HTML; o CI corre-o
+antes de publicar.
 
 ## Estado atual e dívidas conhecidas
 

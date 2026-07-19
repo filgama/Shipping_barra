@@ -29,6 +29,8 @@ jobs:
         run: python teste_offline.py
 
       - name: Gerar painel
+        env:
+          AISSTREAM_KEY: ${{ secrets.AISSTREAM_KEY }}
         run: python janelas_barra.py --horas 72
 
       - name: Preparar artefacto Pages

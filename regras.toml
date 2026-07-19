@@ -134,6 +134,14 @@ vermelho = 20.0
 descricao = "Regulamento APL: RO-RO interdito com vento > 20 kn"
 fonte = "PLACEHOLDER — citado no doc de análise como regra do Regulamento de Exploração da APL, artigo por confirmar"
 
+[dimensoes]
+# Comprimento fora-a-fora (LOA) acima do qual o doc de análise refere que o
+# Regulamento da APL exige atracação na estofa da maré. Usado apenas para
+# uma nota INFORMATIVA no cartão AIS do navio — NÃO altera estados/cores do
+# painel (a manobra em si continua avaliada pelas regras horárias e UKC).
+loa_atracacao_estofa = 150.0
+fonte = "PLACEHOLDER — citado no doc de análise como regra APL, artigo por confirmar"
+
 [notas_regulamentares]
 # Informação qualitativa (não numérica) mostrada no painel, com fonte pública.
 itens = [

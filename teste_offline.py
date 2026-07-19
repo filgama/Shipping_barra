@@ -263,6 +263,110 @@ def teste_html_aviso_apl():
     assert "Dados APL indisponíveis" not in out_ok
 
 
+def teste_ws_parse_frame():
+    # texto curto, não mascarado: "hello"
+    buf = bytes([0x81, 5]) + b"hello"
+    opcode, payload, resto = jb._ws_parse_frame(buf)
+    assert opcode == 0x1 and payload == b"hello" and resto == b""
+    # comprimento 16-bit (>=126): payload de 200 bytes
+    corpo = b"x" * 200
+    buf16 = bytes([0x81, 126]) + (200).to_bytes(2, "big") + corpo
+    opcode, payload, resto = jb._ws_parse_frame(buf16)
+    assert opcode == 0x1 and payload == corpo and resto == b""
+    # frame incompleto (falta payload) -> None
+    assert jb._ws_parse_frame(bytes([0x81, 5]) + b"hel") is None
+    assert jb._ws_parse_frame(bytes([0x81])) is None
+    # ping sem payload
+    opcode, payload, resto = jb._ws_parse_frame(bytes([0x89, 0]))
+    assert opcode == 0x9 and payload == b"" and resto == b""
+    # dois frames concatenados: o resto do primeiro é exatamente o segundo
+    dois = bytes([0x81, 2]) + b"ab" + bytes([0x81, 2]) + b"cd"
+    opcode, payload, resto = jb._ws_parse_frame(dois)
+    assert payload == b"ab"
+    opcode2, payload2, resto2 = jb._ws_parse_frame(resto)
+    assert payload2 == b"cd" and resto2 == b""
+
+
+def teste_haversine():
+    # 1 grau de latitude ~ 60 MN (tolerância generosa: 55-65 MN)
+    d = jb._haversine_mn(38.0, -9.0, 39.0, -9.0)
+    assert 55.0 < d < 65.0, d
+    # mesma coordenada -> 0
+    assert jb._haversine_mn(38.6, -9.4, 38.6, -9.4) == 0.0
+
+
+def teste_agregar_ais():
+    local = {"latitude": 38.62, "longitude": -9.38}
+    mensagens = [
+        {"MessageType": "PositionReport",
+         "MetaData": {"MMSI": 111, "ShipName": "ALFA",
+                      "latitude": 38.62, "longitude": -9.40},
+         "Message": {"PositionReport": {"Sog": 12.3, "Cog": 45.0,
+                                        "Latitude": 38.62, "Longitude": -9.40}}},
+        {"MessageType": "ShipStaticData",
+         "MetaData": {"MMSI": 111, "ShipName": "ALFA"},
+         "Message": {"ShipStaticData": {
+             "ImoNumber": 9638147, "Destination": "LISBOA",
+             "MaximumStaticDraught": 8.2,
+             "Dimension": {"A": 100, "B": 50, "C": 15, "D": 15}}}},
+        # navio mais longe, só posição (sem ficha estática)
+        {"MessageType": "PositionReport",
+         "MetaData": {"MMSI": 222, "ShipName": "BRAVO",
+                      "latitude": 38.90, "longitude": -8.90},
+         "Message": {"PositionReport": {"Sog": 5.0, "Cog": 200.0,
+                                        "Latitude": 38.90, "Longitude": -8.90}}},
+    ]
+    navios = jb._agregar_ais(mensagens, local)
+    assert [n["mmsi"] for n in navios] == [111, 222]   # ordenado por distância
+    alfa = navios[0]
+    assert alfa["nome"] == "ALFA" and alfa["sog"] == 12.3 and alfa["cog"] == 45.0
+    assert alfa["imo"] == "9638147" and alfa["destino"] == "LISBOA"
+    assert alfa["loa"] == 150 and alfa["boca"] == 30
+    assert alfa["distancia_mn"] is not None
+
+
+def teste_html_ais_ativo():
+    prev = previsao_fixa()
+    avals = [jb.avaliar_hora(h, REGRAS) for h in prev]
+    ais = {"erro": None, "quando": datetime(2026, 7, 18, 12, 0), "segundos": 60,
+           "navios": [{"mmsi": 111, "nome": "ALFA", "sog": 12.3, "cog": 45.0,
+                      "imo": "9638147", "destino": "LISBOA",
+                      "loa": 200, "boca": 30, "calado": 8.2,
+                      "distancia_mn": 3.4}]}
+    out = jb.gerar_html(prev, avals, [], {}, REGRAS, ais=ais)
+    assert 'id="ais-titulo"' in out and "No estuário agora" in out
+    assert "ALFA" in out and "3.4 MN da barra" in out
+    assert "SOG 12.3 kn" in out
+    assert "LOA >" not in out  # limiar não definido nesta REGRAS de teste
+    reg_com_dim = dict(REGRAS, dimensoes={"loa_atracacao_estofa": 150.0})
+    out2 = jb.gerar_html(prev, avals, [], {}, reg_com_dim, ais=ais)
+    assert "LOA >150" in out2 and "estofa" in out2
+
+
+def teste_html_ais_inativo():
+    prev = previsao_fixa()
+    avals = [jb.avaliar_hora(h, REGRAS) for h in prev]
+    out = jb.gerar_html(prev, avals, [], {}, REGRAS, ais=None)
+    assert "AIS inativo" in out and "AISSTREAM_KEY" in out
+    out_erro = jb.gerar_html(prev, avals, [], {}, REGRAS,
+                             ais={"erro": "timeout", "navios": [],
+                                  "quando": datetime.now(), "segundos": 60})
+    assert "Recolha AIS falhou" in out_erro and "timeout" in out_erro
+
+
+def teste_fusao_apl_ais():
+    prev = previsao_fixa()
+    avals = [jb.avaliar_hora(h, REGRAS) for h in prev]
+    navios = [{"nome": "ALFA", "sentido": "entrada",
+              "momento": datetime(2026, 7, 18, 6, 0), "calado": 8.0,
+              "tipo": "Carga", "zona": "", "imo": "9638147"}]
+    ais = {"erro": None, "quando": datetime.now(), "segundos": 60,
+           "navios": [{"mmsi": 111, "nome": "ALFA", "sog": 12.3, "cog": 45.0,
+                      "imo": "9638147", "distancia_mn": 3.4}]}
+    out = jb.gerar_html(prev, avals, navios, {}, REGRAS, ais=ais)
+    assert "AIS: a 3.4 MN da barra, SOG 12.3 kn" in out
+
+
 def teste_dark_mode():
     prev = previsao_fixa()
     avals = [jb.avaliar_hora(h, REGRAS) for h in prev]
@@ -279,6 +383,8 @@ TESTES = [teste_avaliar_hora_basico, teste_setor_circular, teste_ukc,
           teste_filtrar_em_porto, teste_html_em_porto,
           teste_resumo_janelas, teste_avaliar_navio,
           teste_html_marcadores_navios, teste_html_aviso_apl,
+          teste_ws_parse_frame, teste_haversine, teste_agregar_ais,
+          teste_html_ais_ativo, teste_html_ais_inativo, teste_fusao_apl_ais,
           teste_dark_mode]
 
 
