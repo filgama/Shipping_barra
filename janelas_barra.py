@@ -863,11 +863,13 @@ def recolher_ais(chave: str, porto: dict, segundos: int = 60) -> dict:
                "segundos": segundos}
 
 
-def _msg_em_bbox(msg: dict, bbox) -> bool:
-    """Posição de uma mensagem AIS bruta (MetaData, com fallback ao corpo
-    PositionReport) dentro de alguma caixa de `bbox` — usado só para
-    repartir um snapshot global por porto em recolher_ais_global. Sem
-    posição reconhecível, a mensagem não é atribuída a nenhum porto."""
+def _posicao_msg(msg: dict) -> tuple[float, float] | None:
+    """Posição (lat, lon) de uma mensagem AIS bruta: primeiro de
+    `MetaData.latitude`/`longitude` (minúsculas, como o aisstream.io as
+    manda), com fallback ao corpo do `MessageType` (`Latitude`/`Longitude`,
+    maiúsculas — ex.: PositionReport). Devolve None sem posição
+    reconhecível. Função pura, usada por `_msg_em_bbox` e para o
+    diagnóstico `com_posicao` de `recolher_ais_global`."""
     meta = msg.get("MetaData") or {}
     lat, lon = meta.get("latitude"), meta.get("longitude")
     if lat is None or lon is None:
@@ -875,21 +877,37 @@ def _msg_em_bbox(msg: dict, bbox) -> bool:
         lat = corpo.get("Latitude", lat)
         lon = corpo.get("Longitude", lon)
     if lat is None or lon is None:
-        return False
-    return _bbox_contem(bbox, lat, lon)
+        return None
+    return lat, lon
 
 
-def recolher_ais_global(chave: str, portos: list[dict], segundos: int = 75) -> dict:
+def _msg_em_bbox(msg: dict, bbox) -> bool:
+    """Posição de uma mensagem AIS bruta (ver `_posicao_msg`) dentro de
+    alguma caixa de `bbox` — usado só para repartir um snapshot global por
+    porto em recolher_ais_global. Sem posição reconhecível, a mensagem não
+    é atribuída a nenhum porto."""
+    p = _posicao_msg(msg)
+    return p is not None and _bbox_contem(bbox, p[0], p[1])
+
+
+def recolher_ais_global(chave: str, portos: list[dict],
+                        segundos: int = 75) -> tuple[dict, dict]:
     """Uma ÚNICA ligação aisstream.io para TODOS os `portos` (cada um já com
     `ais_bbox` — ver carregar_portos), em vez de uma ligação por porto: 50
     janelas sequenciais de ~60 s não cabem no ciclo de 30 min do CI, mas uma
     janela com todas as caixas cabe (BoundingBoxes aceita uma lista).
     Escuta `segundos`, reparte as mensagens por porto (`_msg_em_bbox`) e
-    agrega cada grupo com `_agregar_ais`. Devolve
-    {slug: {"navios": [...], "erro": None, "quando": dt, "segundos": n}}.
-    Nunca lança exceção: falha global (rede, handshake, chave inválida)
-    devolve o MESMO erro para todos os portos, para o painel degradar com
-    aviso em vez de crashar (mesmo contrato de recolher_ais)."""
+    agrega cada grupo com `_agregar_ais`. Devolve um TUPLO (por_porto, diag):
+    `por_porto` é {slug: {"navios": [...], "erro": None, "quando": dt,
+    "segundos": n}}, como sempre; `diag` é um dict de diagnóstico técnico
+    {"brutos": int, "com_posicao": int} — número de mensagens recebidas e
+    quantas delas traziam posição reconhecível (`_posicao_msg`) — para
+    distinguir, sem adivinhar, "não chegou mensagem nenhuma" (chave
+    rejeitada / ligação vazia) de "chegaram mensagens mas nenhuma caiu nas
+    bounding boxes dos portos". Nunca lança exceção: falha global (rede,
+    handshake, chave inválida) devolve o MESMO erro para todos os portos e
+    `{"brutos": 0, "com_posicao": 0}`, para o painel degradar com aviso em
+    vez de crashar (mesmo contrato de recolher_ais)."""
     quando = datetime.now()
     try:
         caixas = []
@@ -904,14 +922,17 @@ def recolher_ais_global(chave: str, portos: list[dict], segundos: int = 75) -> d
                 mensagens.append(json.loads(b.decode("utf-8")))
             except (UnicodeDecodeError, json.JSONDecodeError):
                 continue
+        diag = {"brutos": len(mensagens),
+                "com_posicao": sum(1 for m in mensagens if _posicao_msg(m))}
         erro_subscricao = _erro_aisstream(mensagens)
         if erro_subscricao:
             # subscrição rejeitada (ex.: chave inválida) — mesmo erro para
             # todos os portos, em vez de prosseguir para a agregação (que
-            # ignoraria esta mensagem em silêncio, por não ter MMSI).
-            return {p["slug"]: {"navios": [], "erro": f"aisstream: {erro_subscricao}",
-                                "quando": quando, "segundos": segundos}
-                   for p in portos}
+            # ignoraria esta mensagem em silêncio, por não ter MMSI). Ainda
+            # assim devolve `diag` com o que chegou (útil para diagnóstico).
+            return ({p["slug"]: {"navios": [], "erro": f"aisstream: {erro_subscricao}",
+                                 "quando": quando, "segundos": segundos}
+                    for p in portos}, diag)
         out = {}
         for p in portos:
             bbox_p = p.get("ais_bbox") or []
@@ -919,10 +940,12 @@ def recolher_ais_global(chave: str, portos: list[dict], segundos: int = 75) -> d
             navios = _agregar_ais(mensagens_p, p)
             out[p["slug"]] = {"navios": navios, "erro": None, "quando": quando,
                               "segundos": segundos}
-        return out
+        return out, diag
     except Exception as exc:
-        return {p["slug"]: {"navios": [], "erro": str(exc), "quando": quando,
-                            "segundos": segundos} for p in portos}
+        por_porto = {p["slug"]: {"navios": [], "erro": str(exc),
+                                 "quando": quando, "segundos": segundos}
+                    for p in portos}
+        return por_porto, {"brutos": 0, "com_posicao": 0}
 
 
 def cardeal_seta_rumo(graus) -> tuple[str, str]:
@@ -2050,7 +2073,7 @@ def main() -> None:
     if chave_ais and not args.sem_ais:
         print(f"[AIS] a ligar a aisstream.io para {len(portos)} porto(s) "
               "(~75 s) …")
-        ais_por_slug = recolher_ais_global(chave_ais, portos)
+        ais_por_slug, ais_diag = recolher_ais_global(chave_ais, portos)
         erro_global = next((v["erro"] for v in ais_por_slug.values()
                             if v["erro"]), None)
         if erro_global:
@@ -2062,6 +2085,8 @@ def main() -> None:
             if total_navios == 0:
                 print("[AIS] aviso: 0 navios em toda a Europa é improvável "
                       "— verificar chave/subscrição")
+        print(f"[AIS] diagnóstico: {ais_diag['brutos']} mensagens brutas "
+              f"recebidas, {ais_diag['com_posicao']} com posição")
 
     (RAIZ / "ports").mkdir(exist_ok=True)
     agora_dt = datetime.now()

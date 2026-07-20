@@ -322,6 +322,42 @@ def teste_bbox_contem():
     assert jb._bbox_contem(multi, 0.0, 0.0) is False
 
 
+def teste_posicao_msg():
+    """_posicao_msg extrai (lat, lon) de uma mensagem AIS bruta: primeiro
+    de MetaData (minúsculas), com fallback ao corpo do MessageType
+    (maiúsculas); None sem posição reconhecível. _msg_em_bbox (usada por
+    recolher_ais_global para repartir por porto) tem de continuar a dar o
+    mesmo resultado, já que passou a ser construída sobre este helper."""
+    bbox = [[[38.35, -9.75], [38.95, -8.85]]]
+
+    # posição em MetaData (caso normal do aisstream.io)
+    msg_meta = {"MetaData": {"latitude": 38.62, "longitude": -9.38}}
+    assert jb._posicao_msg(msg_meta) == (38.62, -9.38)
+    assert jb._msg_em_bbox(msg_meta, bbox) is True
+
+    # sem MetaData.latitude/longitude, mas com corpo PositionReport
+    # (Latitude/Longitude, maiúsculas) -> fallback
+    msg_corpo = {"MessageType": "PositionReport",
+                "MetaData": {"MMSI": 111},
+                "Message": {"PositionReport": {"Latitude": 38.70,
+                                               "Longitude": -9.20}}}
+    assert jb._posicao_msg(msg_corpo) == (38.70, -9.20)
+    assert jb._msg_em_bbox(msg_corpo, bbox) is True
+
+    # sem posição reconhecível nenhuma -> None / fora de qualquer bbox
+    msg_sem_posicao = {"MessageType": "ShipStaticData",
+                       "MetaData": {"MMSI": 222},
+                       "Message": {"ShipStaticData": {"Name": "ALFA"}}}
+    assert jb._posicao_msg(msg_sem_posicao) is None
+    assert jb._msg_em_bbox(msg_sem_posicao, bbox) is False
+
+    # posição de MetaData fora da bbox -> _msg_em_bbox False, mas
+    # _posicao_msg continua a devolver o par
+    msg_fora = {"MetaData": {"latitude": 51.98, "longitude": 4.05}}
+    assert jb._posicao_msg(msg_fora) == (51.98, 4.05)
+    assert jb._msg_em_bbox(msg_fora, bbox) is False
+
+
 def teste_bearing():
     # marcação inicial de (1) -> (2); tolerância generosa (geometria esférica)
     assert abs(jb._bearing_graus(38.0, -9.0, 39.0, -9.0) - 0.0) < 1.0     # N
@@ -762,7 +798,8 @@ TESTES = [teste_avaliar_hora_basico, teste_setor_circular, teste_ukc,
           teste_resumo_janelas, teste_avaliar_navio,
           teste_html_marcadores_navios, teste_html_aviso_apl,
           teste_ws_parse_frame, teste_haversine,
-          teste_bbox_contem, teste_bearing, teste_classificar_movimento,
+          teste_bbox_contem, teste_posicao_msg, teste_bearing,
+          teste_classificar_movimento,
           teste_classificar_movimento_nav_status,
           teste_agregar_ais, teste_agregar_ais_nav_status,
           teste_html_ais_ativo, teste_html_ais_inativo, teste_fusao_apl_ais,
