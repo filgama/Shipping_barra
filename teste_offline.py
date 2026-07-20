@@ -527,7 +527,11 @@ def teste_html_ais_inativo():
     out_erro = jb.gerar_html_porto(PORTO_TESTE, prev, avals, [], {}, REGRAS,
                                    ais={"erro": "timeout", "navios": [],
                                         "quando": datetime.now(), "segundos": 60})
-    assert "AIS capture failed" in out_erro and "timeout" in out_erro
+    # mensagem calma e fixa para o público; o motivo técnico ("timeout")
+    # NÃO pode aparecer no HTML — só vai para o log do CI (main()).
+    assert "temporarily unavailable" in out_erro
+    assert "external AIS data service" in out_erro
+    assert "timeout" not in out_erro
 
 
 def teste_fusao_apl_ais():

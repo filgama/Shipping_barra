@@ -347,6 +347,25 @@ publicar.
 - [ ] Volume AIS de ~50 caixas numa única janela (~75 s) é best-effort: com
       tráfego alto, o snapshot fica parcial (aceitável — é o que a janela
       apanhou, não é enganador, mas não é exaustivo).
+- [ ] Em 2026-07-20 o AIS ficou indisponível por uma AVARIA EXTERNA do
+      aisstream.io: o servidor de streaming `stream.aisstream.io`
+      (IP 136.243.173.177) deixou de responder a ligações TCP (timeout no
+      SYN), enquanto o site `aisstream.io` e o Open-Meteo continuaram a
+      responder de imediato — logo não é bug do projeto, nem do runner do
+      GitHub, nem da chave (a falha é ao nível TCP, antes sequer de
+      TLS/subscrição). Confirmado por queixas públicas de terceiros no
+      mesmo dia: github.com/aisstream/issues issues #26 ("Server
+      Certificate Expired") e #27 ("Opening handshake has timed out").
+      Histórico: o mesmo já acontecera em maio e junho de 2026 (problemas
+      de certificado recorrentes). Implicação: o AIS depende de um
+      serviço grátis com fiabilidade intermitente. O código já lida com
+      isto (3 tentativas + backoff, degradação graciosa com aviso ao
+      utilizador). Não há correção a fazer do nosso lado quando o serviço
+      deles está em baixo — a recuperação é automática assim que o
+      aisstream voltar. Alternativas gratuitas equivalentes (cobertura
+      europeia, sem hardware) foram avaliadas e não existem: AISHub exige
+      recetor físico próprio; os "free tier" comerciais não aguentam 52
+      portos × 48 execuções/dia.
 
 ## Roadmap (por ordem de valor)
 

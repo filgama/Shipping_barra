@@ -1571,8 +1571,15 @@ def gerar_html_porto(porto, previsao, avaliacoes, navios, apl, regras,
         seccao_ais = ("<p class='vazio'>AIS inactive (no AISSTREAM_KEY "
                      "configured).</p>")
     elif ais.get("erro"):
-        seccao_ais = (f"<div class='aviso-apl' role='note'>⚠ AIS capture "
-                      f"failed this run: {e(ais['erro'])}.</div>")
+        # Mensagem calma e fixa para o utilizador público: o motivo técnico
+        # (ex.: "timed out") NÃO é interpolado aqui — só vai para o log do
+        # CI via os prints de main() (não tocar). Quem precisa do detalhe
+        # técnico vê o log do GitHub Actions.
+        seccao_ais = ("<div class='aviso-apl' role='note'>⚠ Live ship "
+                      "movements are temporarily unavailable — the "
+                      "external AIS data service isn't responding right "
+                      "now. All weather, sea-state and tide information "
+                      "on this page is current.</div>")
     else:
         cartoes_ais = []
         for nv_ais in ais["navios"]:
@@ -1651,8 +1658,13 @@ def gerar_html_porto(porto, previsao, avaliacoes, navios, apl, regras,
         seccao_movimentos = ("<p class='vazio'>AIS inactive (no AISSTREAM_KEY "
                              "configured).</p>")
     elif ais.get("erro"):
-        seccao_movimentos = (f"<div class='aviso-apl' role='note'>⚠ AIS capture "
-                             f"failed this run: {e(ais['erro'])}.</div>")
+        # Mesma mensagem fixa da secção "Live AIS snapshot" acima — sem o
+        # motivo técnico (só no log do CI via main(), não tocar).
+        seccao_movimentos = ("<div class='aviso-apl' role='note'>⚠ Live ship "
+                             "movements are temporarily unavailable — the "
+                             "external AIS data service isn't responding "
+                             "right now. All weather, sea-state and tide "
+                             "information on this page is current.</div>")
     else:
         grupos_mov = {"entrada": [], "saida": [], "em_porto": []}
         n_indeterminado = 0
