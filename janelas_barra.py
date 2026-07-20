@@ -542,6 +542,13 @@ def cardeal_seta(graus) -> tuple[str, str]:
 # socket/ssl/base64/hashlib/struct), porque aisstream.io só fala WebSocket.
 
 AIS_URL = "wss://stream.aisstream.io/v0/stream"
+# Constantes TÉCNICAS de rede (retries/timeout/backoff da ligação WSS) — não
+# são limiares de decisão náutica, ficam fora de regras.toml no mesmo
+# espírito de LOTE_METEO_PORTOS: parâmetros de robustez de transporte, não
+# critérios GO/NO-GO.
+AIS_TENTATIVAS = 3          # nº máximo de tentativas de recolha por corrida
+AIS_TIMEOUT_LIGACAO_S = 20  # margem para estabelecer TCP+handshake (era 10)
+AIS_BACKOFF_S = 3.0         # pausa base entre tentativas, cresce com a tentativa
 # A caixa geográfica de subscrição já não é uma constante fixa da Barra Sul:
 # vem de porto["ais_bbox"] (catálogo portos.toml — explícito para Lisboa,
 # derivado por carregar_portos/MARGEM_BBOX_GRAUS para os restantes).
@@ -639,7 +646,8 @@ def _ws_recv_json(url: str, subscricao: dict, segundos: float) -> list[bytes]:
     caminho = partes.path or "/"
     mensagens: list[bytes] = []
     ctx = ssl.create_default_context()
-    with socket.create_connection((host, porta), timeout=10) as bruto:
+    with socket.create_connection((host, porta),
+                                  timeout=AIS_TIMEOUT_LIGACAO_S) as bruto:
         with ctx.wrap_socket(bruto, server_hostname=host) as sock:
             buf = _ws_handshake(sock, host, caminho)
             sock.sendall(_ws_frame(0x1, json.dumps(subscricao).encode()))
@@ -897,17 +905,24 @@ def recolher_ais_global(chave: str, portos: list[dict],
     janelas sequenciais de ~60 s não cabem no ciclo de 30 min do CI, mas uma
     janela com todas as caixas cabe (BoundingBoxes aceita uma lista).
     Escuta `segundos`, reparte as mensagens por porto (`_msg_em_bbox`) e
-    agrega cada grupo com `_agregar_ais`. Devolve um TUPLO (por_porto, diag):
-    `por_porto` é {slug: {"navios": [...], "erro": None, "quando": dt,
-    "segundos": n}}, como sempre; `diag` é um dict de diagnóstico técnico
-    {"brutos": int, "com_posicao": int} — número de mensagens recebidas e
-    quantas delas traziam posição reconhecível (`_posicao_msg`) — para
-    distinguir, sem adivinhar, "não chegou mensagem nenhuma" (chave
-    rejeitada / ligação vazia) de "chegaram mensagens mas nenhuma caiu nas
-    bounding boxes dos portos". Nunca lança exceção: falha global (rede,
-    handshake, chave inválida) devolve o MESMO erro para todos os portos e
-    `{"brutos": 0, "com_posicao": 0}`, para o painel degradar com aviso em
-    vez de crashar (mesmo contrato de recolher_ais)."""
+    agrega cada grupo com `_agregar_ais`. Retenta até `AIS_TENTATIVAS` vezes
+    (constante TÉCNICA, não limiar de decisão) com pausa crescente
+    (`AIS_BACKOFF_S`) entre tentativas — o aisstream.io é um serviço grátis
+    instável e o erro "timed out" nasce tipicamente do ESTABELECIMENTO da
+    ligação (`_ws_recv_json`/`socket.create_connection`), não da receção;
+    reintentar a ligação resolve a maioria dos casos observados. Devolve um
+    TUPLO (por_porto, diag): `por_porto` é {slug: {"navios": [...],
+    "erro": None, "quando": dt, "segundos": n}}, como sempre; `diag` é um
+    dict de diagnóstico técnico {"brutos": int, "com_posicao": int,
+    "tentativas": int} — número de mensagens recebidas na tentativa que
+    encerrou o loop, quantas delas traziam posição reconhecível
+    (`_posicao_msg`) e quantas tentativas foram feitas — para distinguir,
+    sem adivinhar, "não chegou mensagem nenhuma" (chave rejeitada / ligação
+    sempre vazia) de "chegaram mensagens mas nenhuma caiu nas bounding
+    boxes dos portos". Nunca lança exceção: falha persistente (rede,
+    handshake, chave inválida) após todas as tentativas devolve o MESMO
+    erro para todos os portos, para o painel degradar com aviso em vez de
+    crashar (mesmo contrato de recolher_ais)."""
     quando = datetime.now()
     try:
         caixas = []
@@ -915,15 +930,33 @@ def recolher_ais_global(chave: str, portos: list[dict],
             caixas.extend(p.get("ais_bbox") or [])
         subscricao = {"APIKey": chave, "BoundingBoxes": caixas,
                       "FilterMessageTypes": ["PositionReport", "ShipStaticData"]}
-        brutos = _ws_recv_json(AIS_URL, subscricao, float(segundos))
-        mensagens = []
-        for b in brutos:
+        mensagens: list[dict] = []
+        erro_final = None
+        tentativa = 0
+        for tentativa in range(1, AIS_TENTATIVAS + 1):
             try:
-                mensagens.append(json.loads(b.decode("utf-8")))
-            except (UnicodeDecodeError, json.JSONDecodeError):
-                continue
+                brutos = _ws_recv_json(AIS_URL, subscricao, float(segundos))
+                mensagens = []
+                for b in brutos:
+                    try:
+                        mensagens.append(json.loads(b.decode("utf-8")))
+                    except (UnicodeDecodeError, json.JSONDecodeError):
+                        continue
+                if mensagens:
+                    # inclui a mensagem {"error": ...} de subscrição
+                    # rejeitada (chave inválida) — não é vazia, não vale a
+                    # pena gastar retries nela; _erro_aisstream trata-a a
+                    # seguir ao loop.
+                    erro_final = None
+                    break
+                erro_final = "no AIS messages received"
+            except Exception as exc:
+                erro_final = str(exc)
+            if tentativa < AIS_TENTATIVAS:
+                time.sleep(AIS_BACKOFF_S * tentativa)
         diag = {"brutos": len(mensagens),
-                "com_posicao": sum(1 for m in mensagens if _posicao_msg(m))}
+                "com_posicao": sum(1 for m in mensagens if _posicao_msg(m)),
+                "tentativas": tentativa}
         erro_subscricao = _erro_aisstream(mensagens)
         if erro_subscricao:
             # subscrição rejeitada (ex.: chave inválida) — mesmo erro para
@@ -931,6 +964,12 @@ def recolher_ais_global(chave: str, portos: list[dict],
             # ignoraria esta mensagem em silêncio, por não ter MMSI). Ainda
             # assim devolve `diag` com o que chegou (útil para diagnóstico).
             return ({p["slug"]: {"navios": [], "erro": f"aisstream: {erro_subscricao}",
+                                 "quando": quando, "segundos": segundos}
+                    for p in portos}, diag)
+        if not mensagens:
+            # todas as tentativas falharam (rede/timeout) ou ligaram sem
+            # trazer mensagem nenhuma — mesmo erro para todos os portos.
+            return ({p["slug"]: {"navios": [], "erro": erro_final,
                                  "quando": quando, "segundos": segundos}
                     for p in portos}, diag)
         out = {}
@@ -945,7 +984,7 @@ def recolher_ais_global(chave: str, portos: list[dict],
         por_porto = {p["slug"]: {"navios": [], "erro": str(exc),
                                  "quando": quando, "segundos": segundos}
                     for p in portos}
-        return por_porto, {"brutos": 0, "com_posicao": 0}
+        return por_porto, {"brutos": 0, "com_posicao": 0, "tentativas": 0}
 
 
 def cardeal_seta_rumo(graus) -> tuple[str, str]:
@@ -2086,7 +2125,8 @@ def main() -> None:
                 print("[AIS] aviso: 0 navios em toda a Europa é improvável "
                       "— verificar chave/subscrição")
         print(f"[AIS] diagnóstico: {ais_diag['brutos']} mensagens brutas "
-              f"recebidas, {ais_diag['com_posicao']} com posição")
+              f"recebidas, {ais_diag['com_posicao']} com posição "
+              f"({ais_diag['tentativas']} tentativa(s))")
 
     (RAIZ / "ports").mkdir(exist_ok=True)
     agora_dt = datetime.now()
